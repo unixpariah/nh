@@ -11,7 +11,9 @@ use crate::commands::Command;
 use crate::generations;
 use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
-use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs, OsRollbackArgs};
+use crate::interface::{
+    self, OsBuildVmArgs, OsGenerationsArgs, OsRebuildArgs, OsReplArgs, OsRollbackArgs,
+};
 use crate::update::update;
 use crate::util::ensure_ssh_key_login;
 use crate::util::get_hostname;
@@ -25,15 +27,16 @@ impl interface::OsArgs {
     pub fn run(self) -> Result<()> {
         use OsRebuildVariant::*;
         match self.subcommand {
-            OsSubcommand::Boot(args) => args.rebuild(Boot),
-            OsSubcommand::Test(args) => args.rebuild(Test),
-            OsSubcommand::Switch(args) => args.rebuild(Switch),
+            OsSubcommand::Boot(args) => args.rebuild(Boot, None),
+            OsSubcommand::Test(args) => args.rebuild(Test, None),
+            OsSubcommand::Switch(args) => args.rebuild(Switch, None),
             OsSubcommand::Build(args) => {
                 if args.common.ask || args.common.dry {
                     warn!("`--ask` and `--dry` have no effect for `nh os build`");
                 }
-                args.rebuild(Build)
+                args.rebuild(Build, None)
             }
+            OsSubcommand::BuildVm(args) => args.build_vm(),
             OsSubcommand::Repl(args) => args.run(),
             OsSubcommand::Info(args) => args.info(),
             OsSubcommand::Rollback(args) => args.rollback(),
@@ -47,10 +50,20 @@ enum OsRebuildVariant {
     Switch,
     Boot,
     Test,
+    BuildVm,
+}
+
+impl OsBuildVmArgs {
+    fn build_vm(self) -> Result<()> {
+        let final_attr = get_final_attr(true, self.with_bootloader);
+        self.common
+            .rebuild(OsRebuildVariant::BuildVm, Some(final_attr))
+    }
 }
 
 impl OsRebuildArgs {
-    fn rebuild(self, variant: OsRebuildVariant) -> Result<()> {
+    // final_attr is the attribute of config.system.build.X to evaluate.
+    fn rebuild(self, variant: OsRebuildVariant, final_attr: Option<String>) -> Result<()> {
         use OsRebuildVariant::*;
 
         if self.build_host.is_some() || self.target_host.is_some() {
@@ -72,7 +85,24 @@ impl OsRebuildArgs {
             update(&self.common.installable, self.update_args.update_input)?;
         }
 
-        let hostname = self.hostname.ok_or(()).or_else(|()| get_hostname())?;
+        let system_hostname = match get_hostname() {
+            Ok(hostname) => Some(hostname),
+            Err(err) => {
+                tracing::warn!("{}", err.to_string());
+                None
+            }
+        };
+
+        let target_hostname = match &self.hostname {
+            Some(h) => h.to_owned(),
+            None => match &system_hostname {
+                Some(hostname) => {
+                    tracing::warn!("Guessing system is {hostname} for a VM image. If this isn't intended, use --hostname to change.");
+                    hostname.clone()
+                }
+                None => return Err(eyre!("Unable to fetch hostname, and no hostname supplied.")),
+            },
+        };
 
         let out_path: Box<dyn crate::util::MaybeTempPath> = match self.common.out_link {
             Some(ref p) => Box::new(p.clone()),
@@ -103,14 +133,23 @@ impl OsRebuildArgs {
             self.common.installable.clone()
         };
 
-        let toplevel = toplevel_for(hostname, installable);
+        let toplevel = toplevel_for(
+            &target_hostname,
+            installable,
+            final_attr.unwrap_or(String::from("toplevel")).as_str(),
+        );
+
+        let message = match variant {
+            BuildVm => "Building NixOS VM image",
+            _ => "Building NixOS configuration",
+        };
 
         commands::Build::new(toplevel)
             .extra_arg("--out-link")
             .extra_arg(out_path.get_path())
             .extra_args(&self.extra_args)
             .builder(self.build_host.clone())
-            .message("Building NixOS configuration")
+            .message(message)
             .nom(!self.common.no_nom)
             .run()?;
 
@@ -133,16 +172,21 @@ impl OsRebuildArgs {
 
         target_profile.try_exists().context("Doesn't exist")?;
 
-        if self.build_host.is_none() && self.target_host.is_none() {
+        if self.build_host.is_none()
+            && self.target_host.is_none()
+            && system_hostname.map_or(true, |h| h == target_hostname)
+        {
             Command::new("nvd")
                 .arg("diff")
                 .arg(CURRENT_PROFILE)
                 .arg(&target_profile)
                 .message("Comparing changes")
                 .run()?;
+        } else {
+            debug!("Not running nvd as the target hostname is different from the system hostname.")
         }
 
-        if self.common.dry || matches!(variant, Build) {
+        if self.common.dry || matches!(variant, Build | BuildVm) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
@@ -466,11 +510,26 @@ fn get_current_generation_number() -> Result<u64> {
         .map_err(|_| eyre!("Invalid generation number"))
 }
 
-pub fn toplevel_for<S: AsRef<str>>(hostname: S, installable: Installable) -> Installable {
-    let mut res = installable;
+pub fn get_final_attr(build_vm: bool, with_bootloader: bool) -> String {
+    let attr = if build_vm && with_bootloader {
+        "vmWithBootLoader"
+    } else if build_vm {
+        "vm"
+    } else {
+        "toplevel"
+    };
+    String::from(attr)
+}
+
+pub fn toplevel_for<S: AsRef<str>>(
+    hostname: S,
+    installable: Installable,
+    final_attr: &str,
+) -> Installable {
+    let mut res = installable.clone();
     let hostname = hostname.as_ref().to_owned();
 
-    let toplevel = ["config", "system", "build", "toplevel"]
+    let toplevel = ["config", "system", "build", final_attr]
         .into_iter()
         .map(String::from);
 

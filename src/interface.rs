@@ -106,6 +106,19 @@ pub enum OsSubcommand {
 
     /// Rollback to a previous generation
     Rollback(OsRollbackArgs),
+
+    /// Build a NixOS VM image
+    BuildVm(OsBuildVmArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct OsBuildVmArgs {
+    #[command(flatten)]
+    pub common: OsRebuildArgs,
+
+    /// Build with bootloader. Bootloader is bypassed by default.
+    #[arg(long, short = 'B')]
+    pub with_bootloader: bool,
 }
 
 #[derive(Debug, Args)]

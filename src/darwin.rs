@@ -91,7 +91,7 @@ impl DarwinRebuildArgs {
             }
         }
 
-        let toplevel = toplevel_for(hostname, processed_installable);
+        let toplevel = toplevel_for(hostname, processed_installable, "toplevel");
 
         commands::Build::new(toplevel)
             .extra_arg("--out-link")

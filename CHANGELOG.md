@@ -22,12 +22,19 @@
   support legacy/vulnerable versions of Nix, and encourage users to update if
   they have not yet done so.
 
+- NixOS: Nh now accepts the subcommand `nh os build-vm`, which builds a virtual
+  machine image activation script instead of a full system. This includes a new
+  option `--with-bootloader/-B` that applies to just build-vm, to build a VM
+  with a bootloader.
+
 ### Changed
 
 - Darwin: Use `darwin-rebuild` directly for activation instead of old scripts
 - Darwin: Future-proof handling of `activate-user` script removal
 - Darwin: Improve compatibility with root-only activation in newer nix-darwin
   versions
+- NixOS: Check if the target hostname matches the running system hostname before
+  running `nvd` to compare them.
 
 ## 4.0.3
 
