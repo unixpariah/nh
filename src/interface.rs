@@ -138,6 +138,14 @@ pub struct CommonRebuildArgs {
     #[command(flatten)]
     pub installable: Installable,
 
+    /// Name of the specialisation
+    #[arg(long, short)]
+    pub specialisation: Option<String>,
+
+    /// Don't use specialisations
+    #[arg(long, short = 'S')]
+    pub no_specialisation: bool,
+
     /// Don't use nix-output-monitor for the build process
     #[arg(long)]
     pub no_nom: bool,
