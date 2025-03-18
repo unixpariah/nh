@@ -18,6 +18,7 @@
 
 ### Changed
 
+- Darwin: Use `darwin-rebuild` directly for activation instead of old scripts
 - Darwin: Future-proof handling of `activate-user` script removal
 - Darwin: Improve compatibility with root-only activation in newer nix-darwin versions
 
