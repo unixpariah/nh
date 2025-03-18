@@ -16,6 +16,10 @@
   support legacy/vulnerable versions of Nix, and encourage users to update if
   they have not yet done so.
 
+### Changed
+
+- Darwin: Improve compatibility with root-only activation in newer nix-darwin versions
+
 ## 4.0.3
 
 ### Added
