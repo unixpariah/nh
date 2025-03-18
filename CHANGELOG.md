@@ -18,6 +18,7 @@
 
 ### Changed
 
+- Darwin: Future-proof handling of `activate-user` script removal
 - Darwin: Improve compatibility with root-only activation in newer nix-darwin versions
 
 ## 4.0.3
