@@ -11,6 +11,7 @@ use crate::generations;
 use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
 use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs};
+use crate::notify::NotificationResponse;
 use crate::update::update;
 use crate::util::get_hostname;
 use crate::{commands, notify};
@@ -144,18 +145,28 @@ impl OsRebuildArgs {
         if self.common.ask {
             info!("Apply the config?");
 
-            _ = notify
+            let action = notify
                 .with_urgency(notify::Urgency::Critical)
                 .with_action("default", "Apply")
                 .send();
 
-            let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+            match action {
+                Ok(Some(NotificationResponse::Dismissed)) => bail!("User rejected the new config"),
+                Ok(Some(NotificationResponse::Action(key))) if &*key != "default" => {
+                    bail!("Unkown action chosen")
+                }
+                Ok(Some(NotificationResponse::Action(key))) if &*key == "default" => { /* Accepted, don't do anything */
+                }
+                _ => {
+                    let confirmation = dialoguer::Confirm::new().default(false).interact()?;
 
-            if !confirmation {
-                bail!("User rejected the new config");
+                    if !confirmation {
+                        bail!("User rejected the new config");
+                    }
+                }
             }
-        } else {
-            _ = notify.send();
+        } else if let Err(e) = notify.send() {
+            warn!(?e, "Failed to send notification");
         }
 
         if let Test | Switch = variant {
