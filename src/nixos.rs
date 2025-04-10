@@ -6,7 +6,6 @@ use color_eyre::eyre::{Context, bail};
 use color_eyre::eyre::{Result, eyre};
 use tracing::{debug, info, warn};
 
-use crate::commands;
 use crate::commands::Command;
 use crate::generations;
 use crate::installable::Installable;
@@ -17,6 +16,7 @@ use crate::interface::{
 use crate::update::update;
 use crate::util::ensure_ssh_key_login;
 use crate::util::get_hostname;
+use crate::{commands, notify};
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
 const CURRENT_PROFILE: &str = "/run/current-system";
@@ -220,6 +220,22 @@ impl OsRebuildArgs {
         }
 
         if self.common.dry || matches!(variant, Build | BuildVm) {
+        target_profile.try_exists().context("Doesn't exist")?;
+
+        Command::new("nvd")
+            .arg("diff")
+            .arg(CURRENT_PROFILE)
+            .arg(&target_profile)
+            .message("Comparing changes")
+            .run()?;
+
+        if let Ok(notify) =
+            notify::notify("nh os switch", "NixOS configuration switched successfully")
+        {
+            _ = notify.send();
+        }
+
+        if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
