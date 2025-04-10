@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 use std::env;
+=======
+use core::fmt;
+>>>>>>> 2a43de2 (Notification summary changes depending on subcommands)
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -46,6 +50,18 @@ enum OsRebuildVariant {
     Switch,
     Boot,
     Test,
+}
+
+impl fmt::Display for OsRebuildVariant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            OsRebuildVariant::Build => "Build",
+            OsRebuildVariant::Switch => "Switch",
+            OsRebuildVariant::Boot => "Boot",
+            OsRebuildVariant::Test => "Test",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 impl OsRebuildArgs {
@@ -131,16 +147,22 @@ impl OsRebuildArgs {
             .message("Comparing changes")
             .run()?;
 
+        let summary = format!("nh os {}", variant.to_string().to_lowercase());
+        let notify = notify::notify()
+            .with_summary(&summary)
+            .with_body("NixOS configuration built successfully.");
+
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
+
+            if let Err(e) = notify.send() {
+                warn!(?e, "Failed to send notification");
+            }
+
             return Ok(());
         }
-
-        let notify = notify::notify()
-            .with_summary("nh os switch")
-            .with_body("NixOS configuration built successfully.");
 
         if self.common.ask {
             info!("Apply the config?");

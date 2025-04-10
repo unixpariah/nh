@@ -1,3 +1,4 @@
+use core::fmt;
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -34,6 +35,16 @@ impl interface::HomeArgs {
 enum HomeRebuildVariant {
     Build,
     Switch,
+}
+
+impl fmt::Display for HomeRebuildVariant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            HomeRebuildVariant::Build => "Build",
+            HomeRebuildVariant::Switch => "Switch",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 impl HomeRebuildArgs {
@@ -128,16 +139,22 @@ impl HomeRebuildArgs {
                 .run()?;
         }
 
+        let summary = format!("nh home {}", variant.to_string().to_lowercase());
+        let notify = notify::notify()
+            .with_summary(&summary)
+            .with_body("Home Manager configuration built successfully.");
+
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
+
+            if let Err(e) = notify.send() {
+                warn!(?e, "Failed to send notification");
+            }
+
             return Ok(());
         }
-
-        let notify = notify::notify()
-            .with_summary("nh home switch")
-            .with_body("Home Manager configuration built successfully.");
 
         if self.common.ask {
             info!("Apply the config?");
