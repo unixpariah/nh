@@ -1,3 +1,4 @@
+use core::fmt;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -60,6 +61,19 @@ impl OsBuildVmArgs {
         debug!("Building VM with attribute: {}", final_attr);
         self.common
             .rebuild(OsRebuildVariant::BuildVm, Some(final_attr))
+    }
+}
+
+impl fmt::Display for OsRebuildVariant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            OsRebuildVariant::Build => "Build",
+            OsRebuildVariant::Switch => "Switch",
+            OsRebuildVariant::Boot => "Boot",
+            OsRebuildVariant::Test => "Test",
+            OsRebuildVariant::BuildVm => "BuildVm",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -222,40 +236,23 @@ impl OsRebuildArgs {
             debug!("Not running nvd as the target hostname is different from the system hostname.");
         }
 
+        // Create notification with dynamic summary based on variant
+        let summary = format!("nh os {}", variant.to_string().to_lowercase());
+        let notify = notify::notify()
+            .with_summary(&summary)
+            .with_body("NixOS configuration built successfully.");
+
         if self.common.dry || matches!(variant, Build | BuildVm) {
-            let show_diff_output = self.build_host.is_none()
-                && self.target_host.is_none()
-                && system_hostname.is_none_or(|h| h == target_hostname);
-
-            if show_diff_output {
-                debug!(
-                    "Comparing with target profile and showing output: {}",
-                    target_profile.display()
-                );
-            } else {
-                debug!(
-                    "Comparing changes with target profile: {}",
-                    target_profile.display()
-                );
-            }
-
-            Command::new("nvd")
-                .arg("diff")
-                .arg(CURRENT_PROFILE)
-                .arg(&target_profile)
-                .message("Comparing changes")
-                .show_output(show_diff_output)
-                .run()?;
-
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
+
+            if let Err(e) = notify.send() {
+                warn!(?e, "Failed to send notification");
+            }
+
             return Ok(());
         }
-
-        let notify = notify::notify()
-            .with_summary("nh os switch")
-            .with_body("NixOS configuration built successfully.");
 
         if self.common.ask {
             info!("Apply the config?");
