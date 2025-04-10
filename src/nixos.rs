@@ -6,7 +6,6 @@ use color_eyre::eyre::{bail, Context};
 use color_eyre::eyre::{eyre, Result};
 use tracing::{debug, info, warn};
 
-use crate::commands;
 use crate::commands::Command;
 use crate::generations;
 use crate::installable::Installable;
@@ -14,6 +13,7 @@ use crate::interface::OsSubcommand::{self};
 use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs};
 use crate::update::update;
 use crate::util::get_hostname;
+use crate::{commands, notify};
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
 const CURRENT_PROFILE: &str = "/run/current-system";
@@ -129,6 +129,12 @@ impl OsRebuildArgs {
             .arg(&target_profile)
             .message("Comparing changes")
             .run()?;
+
+        if let Ok(notify) =
+            notify::notify("nh os switch", "NixOS configuration switched successfully")
+        {
+            _ = notify.send();
+        }
 
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {

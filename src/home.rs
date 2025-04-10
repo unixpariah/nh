@@ -6,12 +6,12 @@ use color_eyre::eyre::bail;
 use color_eyre::Result;
 use tracing::{debug, info, warn};
 
-use crate::commands;
 use crate::commands::Command;
 use crate::installable::Installable;
 use crate::interface::{self, HomeRebuildArgs, HomeReplArgs, HomeSubcommand};
 use crate::update::update;
 use crate::util::get_hostname;
+use crate::{commands, notify};
 
 impl interface::HomeArgs {
     pub fn run(self) -> Result<()> {
@@ -125,6 +125,13 @@ impl HomeRebuildArgs {
                 .arg(target_profile.get_path())
                 .message("Comparing changes")
                 .run()?;
+
+            if let Ok(notify) = notify::notify(
+                "nh home switch",
+                "Home Manager configuration switched successfully",
+            ) {
+                _ = notify.send();
+            }
         }
 
         if self.common.dry || matches!(variant, Build) {
