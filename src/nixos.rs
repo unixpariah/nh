@@ -104,7 +104,7 @@ impl OsRebuildArgs {
                     if matches!(variant, OsRebuildVariant::BuildVm)
                         && final_attr
                             .as_deref()
-                            .map_or(false, |attr| attr == "vm" || attr == "vmWithBootLoader")
+                            .is_some_and(|attr| attr == "vm" || attr == "vmWithBootLoader")
                     {
                         tracing::warn!(
                             "Guessing system is {hostname} for a VM image. If this isn't intended, use --hostname to change."
@@ -201,7 +201,9 @@ impl OsRebuildArgs {
 
         if self.build_host.is_none()
             && self.target_host.is_none()
-            && system_hostname.map_or(true, |h| h == target_hostname)
+            && system_hostname
+                .as_ref()
+                .is_none_or(|h| *h == target_hostname)
         {
             debug!(
                 "Comparing with target profile: {}",
@@ -220,35 +222,55 @@ impl OsRebuildArgs {
         }
 
         if self.common.dry || matches!(variant, Build | BuildVm) {
-        target_profile.try_exists().context("Doesn't exist")?;
+            let show_diff_output = self.build_host.is_none()
+                && self.target_host.is_none()
+                && system_hostname.is_none_or(|h| h == target_hostname);
 
-        Command::new("nvd")
-            .arg("diff")
-            .arg(CURRENT_PROFILE)
-            .arg(&target_profile)
-            .message("Comparing changes")
-            .run()?;
+            if show_diff_output {
+                debug!(
+                    "Comparing with target profile and showing output: {}",
+                    target_profile.display()
+                );
+            } else {
+                debug!(
+                    "Comparing changes with target profile: {}",
+                    target_profile.display()
+                );
+            }
 
-        if let Ok(notify) =
-            notify::notify("nh os switch", "NixOS configuration switched successfully")
-        {
-            _ = notify.send();
-        }
+            Command::new("nvd")
+                .arg("diff")
+                .arg(CURRENT_PROFILE)
+                .arg(&target_profile)
+                .message("Comparing changes")
+                .show_output(show_diff_output)
+                .run()?;
 
-        if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
             }
             return Ok(());
         }
 
+        let notify = notify::notify()
+            .with_summary("nh os switch")
+            .with_body("NixOS configuration built successfully.");
+
         if self.common.ask {
             info!("Apply the config?");
+
+            _ = notify
+                .with_urgency(notify::Urgency::Critical)
+                .with_action("default", "Apply")
+                .send();
+
             let confirmation = dialoguer::Confirm::new().default(false).interact()?;
 
             if !confirmation {
                 bail!("User rejected the new config");
             }
+        } else {
+            _ = notify.send();
         }
 
         if let Some(target_host) = &self.target_host {
