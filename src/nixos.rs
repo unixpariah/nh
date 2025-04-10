@@ -130,12 +130,6 @@ impl OsRebuildArgs {
             .message("Comparing changes")
             .run()?;
 
-        if let Ok(notify) =
-            notify::notify("nh os switch", "NixOS configuration switched successfully")
-        {
-            _ = notify.send();
-        }
-
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
                 warn!("--ask has no effect as dry run was requested");
@@ -143,13 +137,25 @@ impl OsRebuildArgs {
             return Ok(());
         }
 
+        let notify = notify::notify()
+            .with_summary("nh os switch")
+            .with_body("NixOS configuration built successfully.");
+
         if self.common.ask {
             info!("Apply the config?");
+
+            _ = notify
+                .with_urgency(notify::Urgency::Critical)
+                .with_action("default", "Apply")
+                .send();
+
             let confirmation = dialoguer::Confirm::new().default(false).interact()?;
 
             if !confirmation {
                 bail!("User rejected the new config");
             }
+        } else {
+            _ = notify.send();
         }
 
         if let Test | Switch = variant {

@@ -125,13 +125,6 @@ impl HomeRebuildArgs {
                 .arg(target_profile.get_path())
                 .message("Comparing changes")
                 .run()?;
-
-            if let Ok(notify) = notify::notify(
-                "nh home switch",
-                "Home Manager configuration switched successfully",
-            ) {
-                _ = notify.send();
-            }
         }
 
         if self.common.dry || matches!(variant, Build) {
@@ -141,13 +134,25 @@ impl HomeRebuildArgs {
             return Ok(());
         }
 
+        let notify = notify::notify()
+            .with_summary("nh home switch")
+            .with_body("Home Manager configuration built successfully.");
+
         if self.common.ask {
             info!("Apply the config?");
+
+            _ = notify
+                .with_urgency(notify::Urgency::Critical)
+                .with_action("default", "Apply")
+                .send();
+
             let confirmation = dialoguer::Confirm::new().default(false).interact()?;
 
             if !confirmation {
                 bail!("User rejected the new config");
             }
+        } else {
+            _ = notify.send();
         }
 
         if let Some(ext) = &self.backup_extension {
