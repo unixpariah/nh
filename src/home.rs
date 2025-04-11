@@ -162,12 +162,12 @@ impl HomeRebuildArgs {
             let action = notify
                 .with_urgency(notify::Urgency::Critical)
                 .with_action("default", "Apply")
+                .with_action("reject", "Reject")
                 .send();
 
             match action {
-                Ok(Some(NotificationResponse::Dismissed)) => bail!("User rejected the new config"),
-                Ok(Some(NotificationResponse::Action(key))) if &*key != "default" => {
-                    bail!("Unkown action chosen")
+                Ok(Some(NotificationResponse::Action(key))) if &*key == "reject" => {
+                    bail!("User rejected the new config");
                 }
                 Ok(Some(NotificationResponse::Action(key))) if &*key == "default" => { /* Accepted, don't do anything */
                 }
