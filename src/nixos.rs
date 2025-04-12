@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-use std::env;
-=======
 use core::fmt;
->>>>>>> 2a43de2 (Notification summary changes depending on subcommands)
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -187,7 +184,7 @@ impl OsRebuildArgs {
                     }
                 }
             }
-        } else if let Err(e) = notify.send() {
+        } else if let Err(e) = notify.with_urgency(notify::Urgency::Low).send() {
             warn!(?e, "Failed to send notification");
         }
 
