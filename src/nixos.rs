@@ -277,7 +277,7 @@ impl OsRebuildArgs {
                     }
                 }
             }
-        } else if let Err(e) = notify.send() {
+        } else if let Err(e) = notify.with_urgency(notify::Urgency::Low).send() {
             warn!(?e, "Failed to send notification");
         }
 

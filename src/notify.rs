@@ -23,6 +23,8 @@ trait Notifications {
         expire_timeout: i32,
     ) -> zbus::Result<u32>;
 
+    fn get_capabilities(&self) -> zbus::Result<Box<[Box<str>]>>;
+
     #[zbus(signal)]
     fn action_invoked(id: u32, action_key: &str) -> zbus::Result<()>;
 
@@ -42,12 +44,16 @@ pub enum NotificationResponse {
     Dismissed,
 }
 
-pub struct NotificationBuilder<'a> {
+pub struct Uninitialized;
+pub struct HasSummary;
+
+pub struct NotificationBuilder<'a, State = Uninitialized> {
     summary: &'a str,
     body: &'a str,
     icon: &'a str,
     actions: Vec<Action>,
     urgency: Urgency,
+    _state: std::marker::PhantomData<State>,
 }
 
 pub struct Action {
@@ -55,22 +61,31 @@ pub struct Action {
     pub name: Box<str>,
 }
 
-pub fn notify<'a>() -> NotificationBuilder<'a> {
+pub fn notify<'a>() -> NotificationBuilder<'a, Uninitialized> {
     NotificationBuilder {
         body: "",
         summary: "",
         icon: "nix-snowflake",
-        urgency: Urgency::Low,
+        urgency: Urgency::Normal,
         actions: Vec::new(),
+        _state: std::marker::PhantomData,
     }
 }
 
-impl<'a> NotificationBuilder<'a> {
-    pub fn with_summary(mut self, summary: &'a str) -> Self {
-        self.summary = summary;
-        self
+impl<'a> NotificationBuilder<'a, Uninitialized> {
+    pub fn with_summary(self, summary: &'a str) -> NotificationBuilder<'a, HasSummary> {
+        NotificationBuilder {
+            summary,
+            body: self.body,
+            icon: self.icon,
+            urgency: self.urgency,
+            actions: self.actions,
+            _state: std::marker::PhantomData,
+        }
     }
+}
 
+impl<'a, S> NotificationBuilder<'a, S> {
     pub fn with_body(mut self, body: &'a str) -> Self {
         self.body = body;
         self
@@ -81,17 +96,29 @@ impl<'a> NotificationBuilder<'a> {
         self
     }
 
-    pub fn with_action(mut self, key: &'a str, name: &'a str) -> Self {
+    pub fn with_action<T, U>(mut self, key: T, name: U) -> Self
+    where
+        T: Into<Arc<str>>,
+        U: Into<Box<str>>,
+    {
         self.actions.push(Action {
             key: key.into(),
             name: name.into(),
         });
         self
     }
+}
 
+impl<'a> NotificationBuilder<'a, HasSummary> {
     pub fn send(self) -> zbus::Result<Option<NotificationResponse>> {
         let conn = zbus::blocking::Connection::session()?;
         let proxy = NotificationsProxyBlocking::new(&conn)?;
+
+        // Check if notification server supports actions capability
+        let capabilities = proxy.get_capabilities()?;
+        if !capabilities.iter().any(|cap| **cap == *"actions") {
+            return Ok(None);
+        }
 
         let mut hints = HashMap::new();
         hints.insert("urgency", zbus::zvariant::Value::U8(self.urgency as u8));
