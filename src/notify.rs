@@ -23,6 +23,8 @@ trait Notifications {
         expire_timeout: i32,
     ) -> zbus::Result<u32>;
 
+    fn get_capabilities(&self) -> zbus::Result<Box<[Box<str>]>>;
+
     #[zbus(signal)]
     fn action_invoked(id: u32, action_key: &str) -> zbus::Result<()>;
 
@@ -92,6 +94,12 @@ impl<'a> NotificationBuilder<'a> {
     pub fn send(self) -> zbus::Result<Option<NotificationResponse>> {
         let conn = zbus::blocking::Connection::session()?;
         let proxy = NotificationsProxyBlocking::new(&conn)?;
+
+        // Check if notification server supports actions capability
+        let capabilities = proxy.get_capabilities()?;
+        if !capabilities.iter().any(|cap| **cap == *"actions") {
+            return Ok(None);
+        }
 
         let mut hints = HashMap::new();
         hints.insert("urgency", zbus::zvariant::Value::U8(self.urgency as u8));
