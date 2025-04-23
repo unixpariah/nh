@@ -117,7 +117,7 @@ pub struct OsRebuildArgs {
     #[arg(long, short = 'H', global = true)]
     pub hostname: Option<String>,
 
-    /// Explicitely select some specialisation
+    /// Explicitly select some specialisation
     #[arg(long, short)]
     pub specialisation: Option<String>,
 
@@ -239,7 +239,7 @@ pub struct CleanArgs {
     #[arg(long, short = 'n')]
     pub dry: bool,
 
-    /// Ask for confimation
+    /// Ask for confirmation
     #[arg(long, short)]
     pub ask: bool,
 
@@ -294,7 +294,7 @@ pub struct HomeRebuildArgs {
     #[arg(long, short)]
     pub configuration: Option<String>,
 
-    /// Explicitely select some specialisation
+    /// Explicitly select some specialisation
     #[arg(long, short)]
     pub specialisation: Option<String>,
 

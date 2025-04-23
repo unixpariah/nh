@@ -185,12 +185,15 @@ impl SearchArgs {
                 let position = position.split(':').next().unwrap();
                 print!("  Defined at: ");
                 if hyperlinks {
-                    let postion_trimmed = position
+                    let position_trimmed = position
                         .split(':')
                         .next()
                         .expect("Removing line number from position");
 
-                    print_hyperlink!(position, format!("file://{nixpkgs_path}/{postion_trimmed}"));
+                    print_hyperlink!(
+                        position,
+                        format!("file://{nixpkgs_path}/{position_trimmed}")
+                    );
                 } else {
                     println!("{}", position);
                 }
