@@ -6,9 +6,13 @@ use elasticsearch_dsl::*;
 use interface::SearchArgs;
 use regex::Regex;
 use serde::Deserialize;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::*;
+
+// List of deprecated NixOS versions
+// Add new versions as they become deprecated.
+const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05"];
 
 #[derive(Debug, Deserialize)]
 #[allow(non_snake_case, dead_code)]
@@ -211,6 +215,12 @@ fn supported_branch<S: AsRef<str>>(branch: S) -> bool {
         return true;
     }
 
+    if DEPRECATED_VERSIONS.contains(&branch) {
+        warn!("Channel {} is deprecated and not supported", branch);
+        return false;
+    }
+
+    // Support for current version pattern
     let re = Regex::new(r"nixos-[0-9]+\.[0-9]+").unwrap();
     re.is_match(branch)
 }
@@ -219,7 +229,8 @@ fn supported_branch<S: AsRef<str>>(branch: S) -> bool {
 fn test_supported_branch() {
     assert!(supported_branch("nixos-unstable"));
     assert!(!supported_branch("nixos-unstable-small"));
-    assert!(supported_branch("nixos-24.05"));
+    assert!(!supported_branch("nixos-24.05"));
+    assert!(supported_branch("nixos-24.11"));
     assert!(!supported_branch("24.05"));
     assert!(!supported_branch("nixpkgs-darwin"));
     assert!(!supported_branch("nixpks-21.11-darwin"));
