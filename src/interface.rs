@@ -7,7 +7,7 @@ use clap::{builder::Styles, Args, Parser, Subcommand};
 use crate::installable::Installable;
 use crate::Result;
 
-fn make_style() -> Styles {
+const fn make_style() -> Styles {
     Styles::plain().header(Style::new().bold()).literal(
         Style::new()
             .bold()
@@ -55,18 +55,18 @@ pub enum NHCommand {
 impl NHCommand {
     pub fn run(self) -> Result<()> {
         match self {
-            NHCommand::Os(args) => {
+            Self::Os(args) => {
                 std::env::set_var("NH_CURRENT_COMMAND", "os");
                 args.run()
             }
-            NHCommand::Search(args) => args.run(),
-            NHCommand::Clean(proxy) => proxy.command.run(),
-            NHCommand::Completions(args) => args.run(),
-            NHCommand::Home(args) => {
+            Self::Search(args) => args.run(),
+            Self::Clean(proxy) => proxy.command.run(),
+            Self::Completions(args) => args.run(),
+            Self::Home(args) => {
                 std::env::set_var("NH_CURRENT_COMMAND", "home");
                 args.run()
             }
-            NHCommand::Darwin(args) => {
+            Self::Darwin(args) => {
                 std::env::set_var("NH_CURRENT_COMMAND", "darwin");
                 args.run()
             }
@@ -76,7 +76,7 @@ impl NHCommand {
 
 #[derive(Args, Debug)]
 #[clap(verbatim_doc_comment)]
-/// NixOS functionality
+/// `NixOS` functionality
 ///
 /// Implements functionality mostly around but not exclusive to nixos-rebuild
 pub struct OsArgs {
@@ -193,6 +193,10 @@ pub struct SearchArgs {
     /// Show supported platforms for each package
     pub platforms: bool,
 
+    #[arg(long, short = 'j', env = "NH_SEARCH_JSON", value_parser = clap::builder::BoolishValueParser::new())]
+    /// Output results as JSON
+    pub json: bool,
+
     /// Name of the package to search
     pub query: Vec<String>,
 }
@@ -225,7 +229,7 @@ pub enum CleanMode {
 #[clap(verbatim_doc_comment)]
 /// Enhanced nix cleanup
 ///
-/// For --keep-since, see the documentation of humantime for possible formats: https://docs.rs/humantime/latest/humantime/fn.parse_duration.html
+/// For --keep-since, see the documentation of humantime for possible formats: <https://docs.rs/humantime/latest/humantime/fn.parse_duration.html>
 pub struct CleanArgs {
     #[arg(long, short, default_value = "1")]
     /// At least keep this number of generations

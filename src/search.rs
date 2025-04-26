@@ -2,19 +2,19 @@ use std::process::Stdio;
 use std::time::Instant;
 
 use color_eyre::eyre::{bail, Context};
-use elasticsearch_dsl::*;
+use elasticsearch_dsl::{Operator, Query, Search, SearchResponse, TextQueryType};
 use interface::SearchArgs;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, trace, warn};
 
-use crate::*;
+use crate::{interface, Result};
 
 // List of deprecated NixOS versions
 // Add new versions as they become deprecated.
 const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05"];
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[allow(non_snake_case, dead_code)]
 struct SearchResult {
     // r#type: String,
@@ -43,6 +43,14 @@ macro_rules! print_hyperlink {
         print!("{}", $text.underline());
         println!("\x1b]8;;\x07");
     };
+}
+
+#[derive(Debug, Serialize)]
+struct JSONOutput {
+    query: String,
+    channel: String,
+    elapsed_ms: u128,
+    results: Vec<SearchResult>,
 }
 
 impl SearchArgs {
@@ -97,10 +105,12 @@ impl SearchArgs {
             ),
         );
 
-        println!(
-            "Querying search.nixos.org, with channel {}...",
-            self.channel
-        );
+        if !self.json {
+            println!(
+                "Querying search.nixos.org, with channel {}...",
+                self.channel
+            );
+        }
         let then = Instant::now();
 
         let client = reqwest::blocking::Client::new();
@@ -127,9 +137,12 @@ impl SearchArgs {
         let elapsed = then.elapsed();
         debug!(?elapsed);
         trace!(?response);
-        println!("Took {}ms", elapsed.as_millis());
-        println!("Most relevant results at the end");
-        println!();
+
+        if !self.json {
+            println!("Took {}ms", elapsed.as_millis());
+            println!("Most relevant results at the end");
+            println!();
+        }
 
         let parsed_response: SearchResponse = response
             .json()
@@ -139,6 +152,19 @@ impl SearchArgs {
         let documents = parsed_response
             .documents::<SearchResult>()
             .context("parsing search document")?;
+
+        if self.json {
+            // Output as JSON
+            let json_output = JSONOutput {
+                query: query_s,
+                channel: self.channel.clone(),
+                elapsed_ms: elapsed.as_millis(),
+                results: documents,
+            };
+
+            println!("{}", serde_json::to_string_pretty(&json_output)?);
+            return Ok(());
+        }
 
         let hyperlinks = supports_hyperlinks::supports_hyperlinks();
         debug!(?hyperlinks);
@@ -168,16 +194,16 @@ impl SearchArgs {
             if let Some(ref desc) = elem.package_description {
                 let desc = desc.replace('\n', " ");
                 for line in textwrap::wrap(&desc, textwrap::Options::with_termwidth()) {
-                    println!("  {}", line);
+                    println!("  {line}");
                 }
             }
 
-            for url in elem.package_homepage.iter() {
+            for url in &elem.package_homepage {
                 print!("  Homepage: ");
                 if hyperlinks {
                     print_hyperlink!(url, url);
                 } else {
-                    println!("{}", url);
+                    println!("{url}");
                 }
             }
 
@@ -199,7 +225,7 @@ impl SearchArgs {
                         format!("file://{nixpkgs_path}/{position_trimmed}")
                     );
                 } else {
-                    println!("{}", position);
+                    println!("{position}");
                 }
             }
         }
