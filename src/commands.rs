@@ -83,6 +83,13 @@ impl Command {
                 Exec::cmd("sudo")
             };
 
+            // use SUDO_ASKPASS program for sudo if present
+            let cmd = if std::env::var("SUDO_ASKPASS").is_ok() {
+                cmd.arg("-A")
+            } else {
+                cmd
+            };
+
             cmd.arg(&self.command).args(&self.args)
         } else {
             Exec::cmd(&self.command).args(&self.args)
