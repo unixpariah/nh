@@ -55,8 +55,8 @@ fn self_elevate() -> ! {
     use std::os::unix::process::CommandExt;
 
     let mut cmd = std::process::Command::new("sudo");
-    // use SUDO_ASKPASS program for sudo if present
-    if std::env::var("SUDO_ASKPASS").is_ok() {
+    // use NH_SUDO_ASKPASS program for sudo if present
+    if std::env::var("NH_SUDO_ASKPASS").is_ok() {
         cmd.arg("-A");
     }
 
