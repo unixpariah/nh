@@ -55,6 +55,13 @@ fn self_elevate() -> ! {
     use std::os::unix::process::CommandExt;
 
     let mut cmd = std::process::Command::new("sudo");
+
+    // use NH_SUDO_ASKPASS program for sudo if present
+    let askpass = std::env::var("NH_SUDO_ASKPASS");
+    if let Ok(askpass) = askpass {
+        cmd.env("SUDO_ASKPASS", askpass).arg("-A");
+    }
+
     cmd.args(std::env::args());
     debug!("{:?}", cmd);
     let err = cmd.exec();
