@@ -84,8 +84,9 @@ impl Command {
             };
 
             // use NH_SUDO_ASKPASS program for sudo if present
-            let cmd = if std::env::var("NH_SUDO_ASKPASS").is_ok() {
-                cmd.arg("-A")
+            let askpass = std::env::var("NH_SUDO_ASKPASS");
+            let cmd = if let Ok(askpass) = askpass {
+                cmd.env("SUDO_ASKPASS", askpass).arg("-A")
             } else {
                 cmd
             };
