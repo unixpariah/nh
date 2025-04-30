@@ -32,12 +32,12 @@ jobs:
       with:
         token: '${{ secrets.PAT }}'
         title: 'build: bump deps'
+        committer: GitHub <noreply@github.com>
+        author: GitHub <noreply@github.com>
         commit-message: |
           Bump all deps
 
-
           Co-authored-by: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-        author: GitHub <noreply@github.com>
         branch: update
         branch-suffix: timestamp
         delete-branch: true
