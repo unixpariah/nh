@@ -103,6 +103,9 @@ pub enum OsSubcommand {
 
     /// List available generations from profile path
     Info(OsGenerationsArgs),
+
+    /// Rollback to a previous generation
+    Rollback(OsRollbackArgs),
 }
 
 #[derive(Debug, Args)]
@@ -140,6 +143,33 @@ pub struct OsRebuildArgs {
     /// Build the configuration to a different host over ssh
     #[arg(long)]
     pub build_host: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct OsRollbackArgs {
+    /// Only print actions, without performing them
+    #[arg(long, short = 'n')]
+    pub dry: bool,
+
+    /// Ask for confirmation
+    #[arg(long, short)]
+    pub ask: bool,
+
+    /// Explicitly select some specialisation
+    #[arg(long, short)]
+    pub specialisation: Option<String>,
+
+    /// Ignore specialisations
+    #[arg(long, short = 'S')]
+    pub no_specialisation: bool,
+
+    /// Rollback to a specific generation number (defaults to previous generation)
+    #[arg(long, short)]
+    pub to: Option<u64>,
+
+    /// Don't panic if calling nh as root
+    #[arg(short = 'R', long, env = "NH_BYPASS_ROOT_CHECK")]
+    pub bypass_root_check: bool,
 }
 
 #[derive(Debug, Args)]

@@ -6,6 +6,10 @@
 
 ### Added
 
+- A new `nh os rollback` subcommand has been added to allow rolling back a
+  generation, or to a specific generation with the `--to` flag. See
+  `nh os rollback --help` for more details on this subcommand.
+
 - Nh now supports the `--build-host` and `--target-host` cli arguments
 
 - Nh now checks if the current Nix implementation has necessary experimental
@@ -22,7 +26,8 @@
 
 - Darwin: Use `darwin-rebuild` directly for activation instead of old scripts
 - Darwin: Future-proof handling of `activate-user` script removal
-- Darwin: Improve compatibility with root-only activation in newer nix-darwin versions
+- Darwin: Improve compatibility with root-only activation in newer nix-darwin
+  versions
 
 ## 4.0.3
 
