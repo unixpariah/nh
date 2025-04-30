@@ -1,4 +1,19 @@
+<!-- markdownlint-disable no-duplicate-headings -->
+
 # NH Changelog
+
+## 4.0.3
+
+### Added
+
+- Nh now supports specifying `NH_SUDO_ASKPASS` to pass a custom value to
+  `SUDO_ASKPASS` in self-elevation. If specified, `sudo` will be called with
+  `-A` and the `NH_SUDO_ASKPASS` will be `SUDO_ASKPASS` locally.
+
+### Fixed
+
+- Fix `--configuration` being ignored in `nh home switch`
+  ([#262](https://github.com/nix-community/nh/issues/262))
 
 ## 4.0.2
 
