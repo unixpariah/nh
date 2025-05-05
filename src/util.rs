@@ -1,7 +1,7 @@
 extern crate semver;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::str;
 
 use color_eyre::{eyre, Result};
@@ -77,6 +77,27 @@ pub fn get_current_system() -> Result<String> {
         .output()?;
     let output_str = str::from_utf8(&output.stdout)?;
     Ok(output_str.to_string())
+}
+
+/// Prompts the user for ssh key login if needed
+pub fn ensure_ssh_key_login() -> Result<()> {
+    // ssh-add -L checks if there are any currently usable ssh keys
+
+    if Command::new("ssh-add")
+        .arg("-L")
+        .stdout(Stdio::null())
+        .status()?
+        .success()
+    {
+        return Ok(());
+    }
+    Command::new("ssh-add")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?
+        .wait()?;
+    Ok(())
 }
 
 pub trait MaybeTempPath: std::fmt::Debug {

@@ -13,6 +13,7 @@ use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
 use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs};
 use crate::update::update;
+use crate::util::ensure_ssh_key_login;
 use crate::util::get_hostname;
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
@@ -50,6 +51,10 @@ enum OsRebuildVariant {
 impl OsRebuildArgs {
     fn rebuild(self, variant: OsRebuildVariant) -> Result<()> {
         use OsRebuildVariant::*;
+
+        if self.build_host.is_some() || self.target_host.is_some() {
+            ensure_ssh_key_login().unwrap();
+        }
 
         let elevate = if self.bypass_root_check {
             warn!("Bypassing root check, now running nix as root");
