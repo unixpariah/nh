@@ -102,6 +102,7 @@ impl OsRebuildArgs {
             .extra_arg("--out-link")
             .extra_arg(out_path.get_path())
             .extra_args(&self.extra_args)
+            .builder(self.build_host.clone())
             .message("Building NixOS configuration")
             .nom(!self.common.no_nom)
             .run()?;
@@ -123,12 +124,14 @@ impl OsRebuildArgs {
 
         target_profile.try_exists().context("Doesn't exist")?;
 
-        Command::new("nvd")
-            .arg("diff")
-            .arg(CURRENT_PROFILE)
-            .arg(&target_profile)
-            .message("Comparing changes")
-            .run()?;
+        if self.build_host.is_none() && self.target_host.is_none() {
+            Command::new("nvd")
+                .arg("diff")
+                .arg(CURRENT_PROFILE)
+                .arg(&target_profile)
+                .message("Comparing changes")
+                .run()?;
+        }
 
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
@@ -146,7 +149,7 @@ impl OsRebuildArgs {
             }
         }
 
-        let ssh = if let Some(target_host) = &self.target_host {
+        if let Some(target_host) = &self.target_host {
             Command::new("nix")
                 .args([
                     "copy",
@@ -156,9 +159,6 @@ impl OsRebuildArgs {
                 ])
                 .message("Copying configuration to target")
                 .run()?;
-            Some(target_host)
-        } else {
-            None
         };
 
         if let Test | Switch = variant {
@@ -170,7 +170,7 @@ impl OsRebuildArgs {
 
             Command::new(switch_to_configuration)
                 .arg("test")
-                .ssh(ssh.cloned())
+                .ssh(self.target_host.clone())
                 .message("Activating configuration")
                 .elevate(elevate)
                 .run()?;
@@ -181,7 +181,7 @@ impl OsRebuildArgs {
                 .elevate(elevate)
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
                 .arg(out_path.get_path().canonicalize().unwrap())
-                .ssh(ssh.cloned())
+                .ssh(self.target_host.clone())
                 .run()?;
 
             // !! Use the base profile aka no spec-namespace
@@ -194,7 +194,7 @@ impl OsRebuildArgs {
 
             Command::new(switch_to_configuration)
                 .arg("boot")
-                .ssh(ssh.cloned())
+                .ssh(self.target_host.clone())
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .run()?;

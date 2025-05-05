@@ -136,6 +136,10 @@ pub struct OsRebuildArgs {
     /// Deploy the configuration to a different host over ssh
     #[arg(long)]
     pub target_host: Option<String>,
+
+    /// Build the configuration to a different host over ssh
+    #[arg(long)]
+    pub build_host: Option<String>,
 }
 
 #[derive(Debug, Args)]

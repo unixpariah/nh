@@ -59,6 +59,26 @@ pub fn get_nix_version() -> Result<String> {
     Err(eyre::eyre!("Failed to extract version"))
 }
 
+/// Retrieves the current system we're running on in the format nix expects
+///
+/// This functions just runs `nix eval --impure --raw --expr 'builtins.currentSystem'` and gets the
+/// output
+///
+/// * `Result<String>` - The current system string or an error if the version cannot be retrieved.
+pub fn get_current_system() -> Result<String> {
+    let output = Command::new("nix")
+        .args([
+            "eval",
+            "--impure",
+            "--raw",
+            "--expr",
+            "builtins.currentSystem",
+        ])
+        .output()?;
+    let output_str = str::from_utf8(&output.stdout)?;
+    Ok(output_str.to_string())
+}
+
 pub trait MaybeTempPath: std::fmt::Debug {
     fn get_path(&self) -> &Path;
 }

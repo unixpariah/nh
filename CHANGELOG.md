@@ -2,6 +2,12 @@
 
 # NH Changelog
 
+## Unreleased
+
+### Added
+
+- Nh now supports the `--build-host` and `--target-host` cli arguments
+
 ## 4.0.3
 
 ### Added
