@@ -20,7 +20,7 @@ jobs:
     - name: Update
       run: |
         nix flake update
-        eval "${nix print-dev-env}"
+        eval "$(nix print-dev-env)"
         cargo update
         ./fix.sh
 
