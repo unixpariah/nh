@@ -10,34 +10,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install Nix
-      uses: DeterminateSystems/nix-installer-action@main
+    - uses: cachix/install-nix-action@master
+      with:
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       name: Checkout
 
-    - run: nix flake update
-      name: Bump nix
-
-    - run: nix profile install --inputs-from . nixpkgs#cargo-bump nixpkgs#cargo
-      name: Install dependencies
-
-    - run: |
-        cargo bump patch
+    - name: Update
+      run: |
+        nix flake update
+        eval "$(nix print-dev-env)"
         cargo update
-      name: Bump rust
+        ./fix.sh
 
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v4
+      uses: peter-evans/create-pull-request@v7
       with:
         token: '${{ secrets.PAT }}'
-        title: 'build: bump deps'
+        title: "build: bump dependencies"
         committer: GitHub <noreply@github.com>
         author: GitHub <noreply@github.com>
         commit-message: |
-          Bump all deps
+          build: bump dependencies
 
           Co-authored-by: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
         branch: update
-        branch-suffix: timestamp
+        # branch-suffix: timestamp
         delete-branch: true
