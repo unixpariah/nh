@@ -132,6 +132,10 @@ pub struct OsRebuildArgs {
     /// Don't panic if calling nh as root
     #[arg(short = 'R', long, env = "NH_BYPASS_ROOT_CHECK")]
     pub bypass_root_check: bool,
+
+    /// Deploy the configuration to a different host over ssh
+    #[arg(long)]
+    pub target_host: Option<String>,
 }
 
 #[derive(Debug, Args)]

@@ -17,6 +17,7 @@ pub struct Command {
     command: OsString,
     args: Vec<OsString>,
     elevate: bool,
+    ssh: Option<String>,
 }
 
 impl Command {
@@ -27,6 +28,7 @@ impl Command {
             command: command.as_ref().to_os_string(),
             args: vec![],
             elevate: false,
+            ssh: None,
         }
     }
 
@@ -37,6 +39,11 @@ impl Command {
 
     pub fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
+        self
+    }
+
+    pub fn ssh(mut self, ssh: Option<String>) -> Self {
+        self.ssh = ssh;
         self
     }
 
@@ -94,9 +101,16 @@ impl Command {
             cmd.arg(&self.command).args(&self.args)
         } else {
             Exec::cmd(&self.command).args(&self.args)
-        }
-        .stderr(Redirection::None)
-        .stdout(Redirection::None);
+        };
+        let cmd = if let Some(ssh) = &self.ssh {
+            Exec::cmd("ssh")
+                .arg("-T")
+                .arg(ssh)
+                .stdin(cmd.to_cmdline_lossy().as_str())
+        } else {
+            cmd
+        };
+        let cmd = cmd.stderr(Redirection::None).stdout(Redirection::None);
 
         if let Some(m) = &self.message {
             info!("{}", m);
@@ -106,9 +120,9 @@ impl Command {
 
         if !self.dry {
             if let Some(m) = &self.message {
-                cmd.join().wrap_err(m.clone())?;
+                cmd.capture().wrap_err(m.clone())?;
             } else {
-                cmd.join()?;
+                cmd.capture()?;
             }
         }
 

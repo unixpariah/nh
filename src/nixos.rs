@@ -146,14 +146,31 @@ impl OsRebuildArgs {
             }
         }
 
+        let ssh = if let Some(target_host) = &self.target_host {
+            Command::new("nix")
+                .args([
+                    "copy",
+                    "--to",
+                    format!("ssh://{}", target_host).as_str(),
+                    target_profile.to_str().unwrap(),
+                ])
+                .message("Copying configuration to target")
+                .run()?;
+            Some(target_host)
+        } else {
+            None
+        };
+
         if let Test | Switch = variant {
             // !! Use the target profile aka spec-namespaced
             let switch_to_configuration =
                 target_profile.join("bin").join("switch-to-configuration");
+            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
             let switch_to_configuration = switch_to_configuration.to_str().unwrap();
 
             Command::new(switch_to_configuration)
                 .arg("test")
+                .ssh(ssh.cloned())
                 .message("Activating configuration")
                 .elevate(elevate)
                 .run()?;
@@ -163,7 +180,8 @@ impl OsRebuildArgs {
             Command::new("nix")
                 .elevate(elevate)
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
-                .arg(out_path.get_path())
+                .arg(out_path.get_path().canonicalize().unwrap())
+                .ssh(ssh.cloned())
                 .run()?;
 
             // !! Use the base profile aka no spec-namespace
@@ -171,9 +189,12 @@ impl OsRebuildArgs {
                 .get_path()
                 .join("bin")
                 .join("switch-to-configuration");
+            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
+            let switch_to_configuration = switch_to_configuration.to_str().unwrap();
 
             Command::new(switch_to_configuration)
                 .arg("boot")
+                .ssh(ssh.cloned())
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .run()?;
