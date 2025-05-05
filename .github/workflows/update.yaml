@@ -28,11 +28,11 @@ jobs:
       uses: peter-evans/create-pull-request@v4
       with:
         token: '${{ secrets.PAT }}'
-        title: 'build: bump deps'
+        title: "build: bump dependencies"
         committer: GitHub <noreply@github.com>
         author: GitHub <noreply@github.com>
         commit-message: |
-          chore: update dependencies
+          build: bump dependencies
 
           Co-authored-by: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
         branch: update
