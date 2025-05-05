@@ -4,19 +4,20 @@ use color_eyre::{
     eyre::{bail, Context},
     Result,
 };
-use subprocess::{Exec, ExitStatus, Pipeline, Redirection};
+use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
 use tracing::{debug, info};
 
 use crate::{installable::Installable, util::get_current_system};
 
-// for some reason there isnt a common trait that both Exec and Pipeline implements, so just use
-// the no op : from bash
-fn ssh_wrap(cmd: Exec, ssh: Option<&str>) -> Pipeline {
+fn ssh_wrap(cmd: Exec, ssh: Option<&str>) -> Exec {
     if let Some(ssh) = ssh {
-        Exec::cmd("echo").arg(cmd.to_cmdline_lossy().as_str()) | Exec::cmd("ssh").arg("-T").arg(ssh)
+        Exec::cmd("ssh")
+            .arg("-T")
+            .arg(ssh)
+            .stdin(cmd.to_cmdline_lossy().as_str())
     } else {
-        Exec::cmd(":") | cmd
+        cmd
     }
 }
 

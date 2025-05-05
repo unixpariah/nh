@@ -122,6 +122,8 @@ impl OsRebuildArgs {
             Some(spec) => out_path.get_path().join("specialisation").join(spec),
         };
 
+        debug!("exists: {}", target_profile.exists());
+
         target_profile.try_exists().context("Doesn't exist")?;
 
         if self.build_host.is_none() && self.target_host.is_none() {
