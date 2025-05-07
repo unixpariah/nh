@@ -218,10 +218,9 @@ impl Build {
                     .args(&installable_args)
                     .args(&["--log-format", "internal-json", "--verbose"])
                     .args(&match &self.builder {
-                        Some(host) => vec![
-                            "--builders".to_string(),
-                            format!("ssh://{host} {} - - 100", get_current_system().unwrap()),
-                        ],
+                        Some(host) => {
+                            vec!["--builders".to_string(), format!("ssh://{host} - - - 100")]
+                        }
                         None => vec![],
                     })
                     .args(&self.extra_args)

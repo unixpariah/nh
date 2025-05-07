@@ -53,7 +53,8 @@ impl OsRebuildArgs {
         use OsRebuildVariant::*;
 
         if self.build_host.is_some() || self.target_host.is_some() {
-            ensure_ssh_key_login().unwrap();
+            // if it fails its okay
+            let _ = ensure_ssh_key_login();
         }
 
         let elevate = if self.bypass_root_check {
