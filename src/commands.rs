@@ -8,7 +8,7 @@ use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::{installable::Installable, util::get_current_system};
+use crate::installable::Installable;
 
 fn ssh_wrap(cmd: Exec, ssh: Option<&str>) -> Exec {
     if let Some(ssh) = ssh {
