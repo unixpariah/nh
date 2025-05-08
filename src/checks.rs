@@ -2,6 +2,7 @@ use std::{cmp::Ordering, env};
 
 use color_eyre::{eyre, Result};
 use semver::Version;
+use tracing::warn;
 
 use crate::util;
 
@@ -48,12 +49,13 @@ pub fn check_nix_version() -> Result<()> {
     match current.cmp(&required) {
         Ordering::Less => {
             let binary_name = if is_lix_binary { "Lix" } else { "Nix" };
-            Err(eyre::eyre!(
-                "{} version {} is too old. Minimum required version is {}",
+            warn!(
+                "Warning: {} version {} is older than the recommended minimum version {}. You may encounter issues.",
                 binary_name,
                 version,
                 min_version
-            ))
+            );
+            Ok(())
         }
         _ => Ok(()),
     }
