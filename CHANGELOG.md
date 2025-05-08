@@ -2,6 +2,20 @@
 
 # NH Changelog
 
+## Unreleased
+
+### Added
+
+- Nh now checks if the current Nix implementation has necessary experimental
+  features enabled. In mainline Nix (CppNix, etc.) we check for `nix-command`
+  and `flakes` being set. In Lix, we also use `repl-flake` as it is still
+  provided as an experimental feature.
+
+- Nh will now check if you are using the latest stable, or "recommended,"
+  version of Nix (or Lix.) This check has been placed to make it clear we do not
+  support legacy/vulnerable versions of Nix, and encourage users to update if
+  they have not yet done so.
+
 ## 4.0.3
 
 ### Added

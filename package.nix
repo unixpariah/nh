@@ -39,11 +39,12 @@ rustPlatform.buildRustPackage {
 
   buildInputs = lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.SystemConfiguration ];
 
-  preFixup = ''
+  postInstall = ''
     mkdir completions
-    $out/bin/nh completions bash > completions/nh.bash
-    $out/bin/nh completions zsh > completions/nh.zsh
-    $out/bin/nh completions fish > completions/nh.fish
+
+    for shell in bash zsh fish; do
+      NH_NO_CHECKS=1 $out/bin/nh completions $shell > completions/nh.$shell
+    done
 
     installShellCompletion completions/*
   '';
@@ -55,9 +56,7 @@ rustPlatform.buildRustPackage {
 
   cargoLock.lockFile = ./Cargo.lock;
 
-  env = {
-    NH_REV = rev;
-  };
+  env.NH_REV = rev;
 
   meta = {
     description = "Yet another nix cli helper";
@@ -66,6 +65,7 @@ rustPlatform.buildRustPackage {
     mainProgram = "nh";
     maintainers = with lib.maintainers; [
       drupol
+      NotAShelf
       viperML
     ];
   };

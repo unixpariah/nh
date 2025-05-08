@@ -1,3 +1,4 @@
+mod checks;
 mod clean;
 mod commands;
 mod completion;
@@ -20,29 +21,20 @@ const NH_VERSION: &str = env!("CARGO_PKG_VERSION");
 const NH_REV: Option<&str> = option_env!("NH_REV");
 
 fn main() -> Result<()> {
-    let mut do_warn = false;
-    if let Ok(f) = std::env::var("FLAKE") {
-        // Set NH_FLAKE if it's not already set
-        if std::env::var("NH_FLAKE").is_err() {
-            std::env::set_var("NH_FLAKE", f);
-
-            // Only warn if FLAKE is set and we're using it to set NH_FLAKE
-            // AND none of the command-specific env vars are set
-            if std::env::var("NH_OS_FLAKE").is_err()
-                && std::env::var("NH_HOME_FLAKE").is_err()
-                && std::env::var("NH_DARWIN_FLAKE").is_err()
-            {
-                do_warn = true;
-            }
-        }
-    }
-
     let args = <crate::interface::Main as clap::Parser>::parse();
+
+    // Set up logging
     crate::logging::setup_logging(args.verbose)?;
     tracing::debug!("{args:#?}");
     tracing::debug!(%NH_VERSION, ?NH_REV);
 
-    if do_warn {
+    // Verify the Nix environment before running commands
+    checks::verify_nix_environment()?;
+
+    // Once we assert required Nix features, validate NH environment checks
+    // For now, this is just NH_* variables being set. More checks may be
+    // added to setup_environment in the future.
+    if checks::setup_environment()? {
         tracing::warn!(
             "nh {NH_VERSION} now uses NH_FLAKE instead of FLAKE, please modify your configuration"
         );
@@ -51,6 +43,7 @@ fn main() -> Result<()> {
     args.command.run()
 }
 
+/// Self-elevates the current process by re-executing it with sudo
 fn self_elevate() -> ! {
     use std::os::unix::process::CommandExt;
 
