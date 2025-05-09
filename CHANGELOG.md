@@ -16,6 +16,12 @@
   support legacy/vulnerable versions of Nix, and encourage users to update if
   they have not yet done so.
 
+### Changed
+
+- Darwin: Use `darwin-rebuild` directly for activation instead of old scripts
+- Darwin: Future-proof handling of `activate-user` script removal
+- Darwin: Improve compatibility with root-only activation in newer nix-darwin versions
+
 ## 4.0.3
 
 ### Added
