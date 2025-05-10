@@ -122,9 +122,16 @@ impl interface::CleanMode {
                     continue;
                 };
 
+                // Create a file descriptor for the current working directory
+                let dirfd = nix::fcntl::open(
+                    ".",
+                    nix::fcntl::OFlag::O_DIRECTORY,
+                    nix::sys::stat::Mode::empty(),
+                )?;
+
                 // Use .exists to not travel symlinks
                 if match faccessat(
-                    None,
+                    &dirfd,
                     &dst,
                     AccessFlags::F_OK | AccessFlags::W_OK,
                     AtFlags::AT_SYMLINK_NOFOLLOW,
