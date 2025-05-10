@@ -11,7 +11,7 @@ use crate::commands::Command;
 use crate::generations;
 use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
-use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs};
+use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs, OsRollbackArgs};
 use crate::update::update;
 use crate::util::ensure_ssh_key_login;
 use crate::util::get_hostname;
@@ -36,6 +36,7 @@ impl interface::OsArgs {
             }
             OsSubcommand::Repl(args) => args.run(),
             OsSubcommand::Info(args) => args.info(),
+            OsSubcommand::Rollback(args) => args.rollback(),
         }
     }
 }
@@ -214,6 +215,255 @@ impl OsRebuildArgs {
 
         Ok(())
     }
+}
+
+impl OsRollbackArgs {
+    fn rollback(&self) -> Result<()> {
+        let elevate = if self.bypass_root_check {
+            warn!("Bypassing root check, now running nix as root");
+            false
+        } else {
+            if nix::unistd::Uid::effective().is_root() {
+                bail!("Don't run nh os as root. I will call sudo internally as needed");
+            }
+            true
+        };
+
+        // Find previous generation or specific generation
+        let target_generation = if let Some(gen_number) = self.to {
+            find_generation_by_number(gen_number)?
+        } else {
+            find_previous_generation()?
+        };
+
+        info!("Rolling back to generation {}", target_generation.number);
+
+        // Construct path to the generation
+        let profile_dir = Path::new(SYSTEM_PROFILE)
+            .parent()
+            .unwrap_or(Path::new("/nix/var/nix/profiles"));
+        let generation_link = profile_dir.join(format!("system-{}-link", target_generation.number));
+
+        // Handle specialisations
+        let current_specialisation = fs::read_to_string(SPEC_LOCATION).ok();
+
+        let target_specialisation = if self.no_specialisation {
+            None
+        } else {
+            self.specialisation.clone().or(current_specialisation)
+        };
+
+        debug!("target_specialisation: {target_specialisation:?}");
+
+        // Compare changes between current and target generation
+        Command::new("nvd")
+            .arg("diff")
+            .arg(CURRENT_PROFILE)
+            .arg(&generation_link)
+            .message("Comparing changes")
+            .run()?;
+
+        if self.dry {
+            info!(
+                "Dry run: would roll back to generation {}",
+                target_generation.number
+            );
+            return Ok(());
+        }
+
+        if self.ask {
+            info!("Roll back to generation {}?", target_generation.number);
+            let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+
+            if !confirmation {
+                bail!("User rejected the rollback");
+            }
+        }
+
+        // Get current generation number for potential rollback
+        let current_gen_number = match get_current_generation_number() {
+            Ok(num) => num,
+            Err(e) => {
+                warn!("Failed to get current generation number: {}", e);
+                0
+            }
+        };
+
+        // Set the system profile
+        info!("Setting system profile...");
+
+        // Instead of direct symlink operations, use a command with proper elevation
+        Command::new("ln")
+            .arg("-sfn") // force, symbolic link
+            .arg(&generation_link)
+            .arg(SYSTEM_PROFILE)
+            .elevate(elevate)
+            .message("Setting system profile")
+            .run()?;
+
+        // Set up rollback protection flag
+        let mut rollback_profile = false;
+
+        // Determine the correct profile to use with specialisations
+        let final_profile = match &target_specialisation {
+            None => generation_link,
+            Some(spec) => {
+                let spec_path = generation_link.join("specialisation").join(spec);
+                if !spec_path.exists() {
+                    warn!(
+                        "Specialisation '{}' does not exist in generation {}",
+                        spec, target_generation.number
+                    );
+                    warn!("Using base configuration without specialisations");
+                    generation_link
+                } else {
+                    spec_path
+                }
+            }
+        };
+
+        // Activate the configuration
+        info!("Activating...");
+
+        let switch_to_configuration = final_profile.join("bin").join("switch-to-configuration");
+
+        match Command::new(&switch_to_configuration)
+            .arg("switch")
+            .elevate(elevate)
+            .run()
+        {
+            Ok(_) => {
+                info!(
+                    "Successfully rolled back to generation {}",
+                    target_generation.number
+                );
+            }
+            Err(e) => {
+                rollback_profile = true;
+
+                // If activation fails, rollback the profile
+                if rollback_profile && current_gen_number > 0 {
+                    let current_gen_link =
+                        profile_dir.join(format!("system-{}-link", current_gen_number));
+
+                    Command::new("ln")
+                        .arg("-sfn") // Force, symbolic link
+                        .arg(&current_gen_link)
+                        .arg(SYSTEM_PROFILE)
+                        .elevate(elevate)
+                        .message("Rolling back system profile")
+                        .run()?;
+                }
+
+                return Err(e).context("Failed to activate configuration");
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn find_previous_generation() -> Result<generations::GenerationInfo> {
+    let profile_path = PathBuf::from(SYSTEM_PROFILE);
+
+    let mut generations: Vec<generations::GenerationInfo> = fs::read_dir(
+        profile_path
+            .parent()
+            .unwrap_or(Path::new("/nix/var/nix/profiles")),
+    )?
+    .filter_map(|entry| {
+        entry.ok().and_then(|e| {
+            let path = e.path();
+            if let Some(filename) = path.file_name() {
+                if let Some(name) = filename.to_str() {
+                    if name.starts_with("system-") && name.ends_with("-link") {
+                        return generations::describe(&path, &profile_path);
+                    }
+                }
+            }
+            None
+        })
+    })
+    .collect();
+
+    if generations.is_empty() {
+        bail!("No generations found");
+    }
+
+    generations.sort_by(|a, b| {
+        a.number
+            .parse::<u64>()
+            .unwrap_or(0)
+            .cmp(&b.number.parse::<u64>().unwrap_or(0))
+    });
+
+    let current_idx = generations
+        .iter()
+        .position(|g| g.current)
+        .ok_or_else(|| eyre!("Current generation not found"))?;
+
+    if current_idx == 0 {
+        bail!("No generation older than the current one exists");
+    }
+
+    Ok(generations[current_idx - 1].clone())
+}
+
+fn find_generation_by_number(number: u64) -> Result<generations::GenerationInfo> {
+    let profile_path = PathBuf::from(SYSTEM_PROFILE);
+
+    let generations: Vec<generations::GenerationInfo> = fs::read_dir(
+        profile_path
+            .parent()
+            .unwrap_or(Path::new("/nix/var/nix/profiles")),
+    )?
+    .filter_map(|entry| {
+        entry.ok().and_then(|e| {
+            let path = e.path();
+            if let Some(filename) = path.file_name() {
+                if let Some(name) = filename.to_str() {
+                    if name.starts_with("system-") && name.ends_with("-link") {
+                        return generations::describe(&path, &profile_path);
+                    }
+                }
+            }
+            None
+        })
+    })
+    .filter(|gen| gen.number == number.to_string())
+    .collect();
+
+    if generations.is_empty() {
+        bail!("Generation {} not found", number);
+    }
+
+    Ok(generations[0].clone())
+}
+
+fn get_current_generation_number() -> Result<u64> {
+    let profile_path = PathBuf::from(SYSTEM_PROFILE);
+
+    let generations: Vec<generations::GenerationInfo> = fs::read_dir(
+        profile_path
+            .parent()
+            .unwrap_or(Path::new("/nix/var/nix/profiles")),
+    )?
+    .filter_map(|entry| {
+        entry
+            .ok()
+            .and_then(|e| generations::describe(&e.path(), &profile_path))
+    })
+    .collect();
+
+    let current_gen = generations
+        .iter()
+        .find(|g| g.current)
+        .ok_or_else(|| eyre!("Current generation not found"))?;
+
+    current_gen
+        .number
+        .parse::<u64>()
+        .map_err(|_| eyre!("Invalid generation number"))
 }
 
 pub fn toplevel_for<S: AsRef<str>>(hostname: S, installable: Installable) -> Installable {

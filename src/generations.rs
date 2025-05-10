@@ -6,7 +6,7 @@ use std::process;
 use chrono::{DateTime, Local, TimeZone, Utc};
 use tracing::debug;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GenerationInfo {
     /// Number of a generation
     pub number: String,
@@ -122,12 +122,44 @@ pub fn describe(generation_dir: &Path, current_profile: &Path) -> Option<Generat
         }
     };
 
-    let canonical_gen_dir = generation_dir.canonicalize().ok()?;
-    let current = current_profile
-        .canonicalize()
+    // Check if this generation is the current one
+    let run_current_target = match fs::read_link("/run/current-system")
         .ok()
-        .map(|canonical_current| canonical_gen_dir == canonical_current)
-        .unwrap_or(false);
+        .and_then(|p| fs::canonicalize(p).ok())
+    {
+        Some(path) => path,
+        None => {
+            return Some(GenerationInfo {
+                number: generation_number.to_string(),
+                date: build_date,
+                nixos_version,
+                kernel_version,
+                configuration_revision,
+                specialisations,
+                current: false,
+            })
+        }
+    };
+
+    let gen_store_path = match fs::read_link(generation_dir)
+        .ok()
+        .and_then(|p| fs::canonicalize(p).ok())
+    {
+        Some(path) => path,
+        None => {
+            return Some(GenerationInfo {
+                number: generation_number.to_string(),
+                date: build_date,
+                nixos_version,
+                kernel_version,
+                configuration_revision,
+                specialisations,
+                current: false,
+            })
+        }
+    };
+
+    let current = run_current_target == gen_store_path;
 
     Some(GenerationInfo {
         number: generation_number.to_string(),
@@ -174,9 +206,8 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
 
     // Sort generations by numeric value of the generation number
     generations.sort_by_key(|gen| gen.number.parse::<u64>().unwrap_or(0));
-    let current_generation = generations
-        .iter()
-        .max_by_key(|gen| gen.number.parse::<u64>().unwrap_or(0));
+
+    let current_generation = generations.iter().find(|gen| gen.current);
     debug!(?current_generation);
 
     if let Some(current) = current_generation {
