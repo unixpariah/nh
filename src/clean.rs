@@ -15,7 +15,7 @@ use regex::Regex;
 use tracing::{debug, info, instrument, span, warn, Level};
 use uzers::os::unix::UserExt;
 
-use crate::{commands::Command, Result, interface};
+use crate::{commands::Command, interface, Result};
 
 // Nix impl:
 // https://github.com/NixOS/nix/blob/master/src/nix-collect-garbage/nix-collect-garbage.cc
