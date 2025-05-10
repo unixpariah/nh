@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::process::{Command as StdCommand, Stdio};
 use std::str;
 
 use color_eyre::{eyre, Result};
@@ -39,6 +40,27 @@ pub fn get_nix_version() -> Result<String> {
     }
 
     Err(eyre::eyre!("Failed to extract version"))
+}
+
+/// Prompts the user for ssh key login if needed
+pub fn ensure_ssh_key_login() -> Result<()> {
+    // ssh-add -L checks if there are any currently usable ssh keys
+
+    if StdCommand::new("ssh-add")
+        .arg("-L")
+        .stdout(Stdio::null())
+        .status()?
+        .success()
+    {
+        return Ok(());
+    }
+    StdCommand::new("ssh-add")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?
+        .wait()?;
+    Ok(())
 }
 
 /// Determines if the Nix binary is actually Lix

@@ -6,6 +6,8 @@
 
 ### Added
 
+- Nh now supports the `--build-host` and `--target-host` cli arguments
+
 - Nh now checks if the current Nix implementation has necessary experimental
   features enabled. In mainline Nix (CppNix, etc.) we check for `nix-command`
   and `flakes` being set. In Lix, we also use `repl-flake` as it is still

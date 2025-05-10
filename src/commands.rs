@@ -10,6 +10,17 @@ use tracing::{debug, info};
 
 use crate::installable::Installable;
 
+fn ssh_wrap(cmd: Exec, ssh: Option<&str>) -> Exec {
+    if let Some(ssh) = ssh {
+        Exec::cmd("ssh")
+            .arg("-T")
+            .arg(ssh)
+            .stdin(cmd.to_cmdline_lossy().as_str())
+    } else {
+        cmd
+    }
+}
+
 #[derive(Debug)]
 pub struct Command {
     dry: bool,
@@ -17,6 +28,7 @@ pub struct Command {
     command: OsString,
     args: Vec<OsString>,
     elevate: bool,
+    ssh: Option<String>,
 }
 
 impl Command {
@@ -27,6 +39,7 @@ impl Command {
             command: command.as_ref().to_os_string(),
             args: vec![],
             elevate: false,
+            ssh: None,
         }
     }
 
@@ -37,6 +50,11 @@ impl Command {
 
     pub fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
+        self
+    }
+
+    pub fn ssh(mut self, ssh: Option<String>) -> Self {
+        self.ssh = ssh;
         self
     }
 
@@ -94,9 +112,9 @@ impl Command {
             cmd.arg(&self.command).args(&self.args)
         } else {
             Exec::cmd(&self.command).args(&self.args)
-        }
-        .stderr(Redirection::None)
-        .stdout(Redirection::None);
+        };
+        let cmd =
+            ssh_wrap(cmd.stderr(Redirection::None), self.ssh.as_deref()).stdout(Redirection::None);
 
         if let Some(m) = &self.message {
             info!("{}", m);
@@ -106,9 +124,9 @@ impl Command {
 
         if !self.dry {
             if let Some(m) = &self.message {
-                cmd.join().wrap_err(m.clone())?;
+                cmd.capture().wrap_err(m.clone())?;
             } else {
-                cmd.join()?;
+                cmd.capture()?;
             }
         }
 
@@ -141,6 +159,7 @@ pub struct Build {
     installable: Installable,
     extra_args: Vec<OsString>,
     nom: bool,
+    builder: Option<String>,
 }
 
 impl Build {
@@ -150,6 +169,7 @@ impl Build {
             installable,
             extra_args: vec![],
             nom: false,
+            builder: None,
         }
     }
 
@@ -165,6 +185,11 @@ impl Build {
 
     pub fn nom(mut self, yes: bool) -> Self {
         self.nom = yes;
+        self
+    }
+
+    pub fn builder(mut self, builder: Option<String>) -> Self {
+        self.builder = builder;
         self
     }
 
@@ -192,9 +217,15 @@ impl Build {
                     .arg("build")
                     .args(&installable_args)
                     .args(&["--log-format", "internal-json", "--verbose"])
+                    .args(&match &self.builder {
+                        Some(host) => {
+                            vec!["--builders".to_string(), format!("ssh://{host} - - - 100")]
+                        }
+                        None => vec![],
+                    })
                     .args(&self.extra_args)
-                    .stdout(Redirection::Pipe)
                     .stderr(Redirection::Merge)
+                    .stdout(Redirection::Pipe)
                     | Exec::cmd("nom").args(&["--json"])
             }
             .stdout(Redirection::None);
@@ -205,8 +236,8 @@ impl Build {
                 .arg("build")
                 .args(&installable_args)
                 .args(&self.extra_args)
-                .stdout(Redirection::None)
-                .stderr(Redirection::Merge);
+                .stderr(Redirection::Merge)
+                .stdout(Redirection::None);
 
             debug!(?cmd);
             cmd.join()

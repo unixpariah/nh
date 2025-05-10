@@ -13,6 +13,7 @@ use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
 use crate::interface::{self, OsGenerationsArgs, OsRebuildArgs, OsReplArgs};
 use crate::update::update;
+use crate::util::ensure_ssh_key_login;
 use crate::util::get_hostname;
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
@@ -50,6 +51,11 @@ enum OsRebuildVariant {
 impl OsRebuildArgs {
     fn rebuild(self, variant: OsRebuildVariant) -> Result<()> {
         use OsRebuildVariant::*;
+
+        if self.build_host.is_some() || self.target_host.is_some() {
+            // if it fails its okay
+            let _ = ensure_ssh_key_login();
+        }
 
         let elevate = if self.bypass_root_check {
             warn!("Bypassing root check, now running nix as root");
@@ -102,6 +108,7 @@ impl OsRebuildArgs {
             .extra_arg("--out-link")
             .extra_arg(out_path.get_path())
             .extra_args(&self.extra_args)
+            .builder(self.build_host.clone())
             .message("Building NixOS configuration")
             .nom(!self.common.no_nom)
             .run()?;
@@ -121,14 +128,18 @@ impl OsRebuildArgs {
             Some(spec) => out_path.get_path().join("specialisation").join(spec),
         };
 
+        debug!("exists: {}", target_profile.exists());
+
         target_profile.try_exists().context("Doesn't exist")?;
 
-        Command::new("nvd")
-            .arg("diff")
-            .arg(CURRENT_PROFILE)
-            .arg(&target_profile)
-            .message("Comparing changes")
-            .run()?;
+        if self.build_host.is_none() && self.target_host.is_none() {
+            Command::new("nvd")
+                .arg("diff")
+                .arg(CURRENT_PROFILE)
+                .arg(&target_profile)
+                .message("Comparing changes")
+                .run()?;
+        }
 
         if self.common.dry || matches!(variant, Build) {
             if self.common.ask {
@@ -146,14 +157,28 @@ impl OsRebuildArgs {
             }
         }
 
+        if let Some(target_host) = &self.target_host {
+            Command::new("nix")
+                .args([
+                    "copy",
+                    "--to",
+                    format!("ssh://{}", target_host).as_str(),
+                    target_profile.to_str().unwrap(),
+                ])
+                .message("Copying configuration to target")
+                .run()?;
+        };
+
         if let Test | Switch = variant {
             // !! Use the target profile aka spec-namespaced
             let switch_to_configuration =
                 target_profile.join("bin").join("switch-to-configuration");
+            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
             let switch_to_configuration = switch_to_configuration.to_str().unwrap();
 
             Command::new(switch_to_configuration)
                 .arg("test")
+                .ssh(self.target_host.clone())
                 .message("Activating configuration")
                 .elevate(elevate)
                 .run()?;
@@ -163,7 +188,8 @@ impl OsRebuildArgs {
             Command::new("nix")
                 .elevate(elevate)
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
-                .arg(out_path.get_path())
+                .arg(out_path.get_path().canonicalize().unwrap())
+                .ssh(self.target_host.clone())
                 .run()?;
 
             // !! Use the base profile aka no spec-namespace
@@ -171,9 +197,12 @@ impl OsRebuildArgs {
                 .get_path()
                 .join("bin")
                 .join("switch-to-configuration");
+            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
+            let switch_to_configuration = switch_to_configuration.to_str().unwrap();
 
             Command::new(switch_to_configuration)
                 .arg("boot")
+                .ssh(self.target_host.clone())
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .run()?;
