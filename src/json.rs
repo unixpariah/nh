@@ -19,7 +19,7 @@ impl Display for Error {
             if i != 0 {
                 write!(f, ".")?;
             }
-            write!(f, "{}", elem)?;
+            write!(f, "{elem}")?;
         }
 
         Ok(())
@@ -29,7 +29,7 @@ impl Display for Error {
 impl std::error::Error for Error {}
 
 impl<'v> Value<'v> {
-    pub fn new(value: &'v serde_json::Value) -> Self {
+    pub const fn new(value: &'v serde_json::Value) -> Self {
         Self {
             inner: value,
             get_stack: vec![],

@@ -66,7 +66,12 @@ impl FromArgMatches for Installable {
             let reference = elems.next().unwrap().to_owned();
             return Ok(Self::Flake {
                 reference,
-                attribute: parse_attribute(elems.next().map(|s| s.to_string()).unwrap_or_default()),
+                attribute: parse_attribute(
+                    elems
+                        .next()
+                        .map(std::string::ToString::to_string)
+                        .unwrap_or_default(),
+                ),
             });
         }
 
@@ -80,7 +85,10 @@ impl FromArgMatches for Installable {
                     return Ok(Self::Flake {
                         reference: elems.next().unwrap().to_owned(),
                         attribute: parse_attribute(
-                            elems.next().map(|s| s.to_string()).unwrap_or_default(),
+                            elems
+                                .next()
+                                .map(std::string::ToString::to_string)
+                                .unwrap_or_default(),
                         ),
                     });
                 }
@@ -90,7 +98,10 @@ impl FromArgMatches for Installable {
                     return Ok(Self::Flake {
                         reference: elems.next().unwrap().to_owned(),
                         attribute: parse_attribute(
-                            elems.next().map(|s| s.to_string()).unwrap_or_default(),
+                            elems
+                                .next()
+                                .map(std::string::ToString::to_string)
+                                .unwrap_or_default(),
                         ),
                     });
                 }
@@ -100,7 +111,10 @@ impl FromArgMatches for Installable {
                     return Ok(Self::Flake {
                         reference: elems.next().unwrap().to_owned(),
                         attribute: parse_attribute(
-                            elems.next().map(|s| s.to_string()).unwrap_or_default(),
+                            elems
+                                .next()
+                                .map(std::string::ToString::to_string)
+                                .unwrap_or_default(),
                         ),
                     });
                 }
@@ -111,7 +125,12 @@ impl FromArgMatches for Installable {
             let mut elems = f.splitn(2, '#');
             return Ok(Self::Flake {
                 reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(elems.next().map(|s| s.to_string()).unwrap_or_default()),
+                attribute: parse_attribute(
+                    elems
+                        .next()
+                        .map(std::string::ToString::to_string)
+                        .unwrap_or_default(),
+                ),
             });
         }
 
@@ -119,7 +138,12 @@ impl FromArgMatches for Installable {
             let mut elems = f.splitn(2, '#');
             return Ok(Self::Flake {
                 reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(elems.next().map(|s| s.to_string()).unwrap_or_default()),
+                attribute: parse_attribute(
+                    elems
+                        .next()
+                        .map(std::string::ToString::to_string)
+                        .unwrap_or_default(),
+                ),
             });
         }
 
@@ -127,7 +151,12 @@ impl FromArgMatches for Installable {
             let mut elems = f.splitn(2, '#');
             return Ok(Self::Flake {
                 reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(elems.next().map(|s| s.to_string()).unwrap_or_default()),
+                attribute: parse_attribute(
+                    elems
+                        .next()
+                        .map(std::string::ToString::to_string)
+                        .unwrap_or_default(),
+                ),
             });
         }
 
@@ -135,7 +164,12 @@ impl FromArgMatches for Installable {
             let mut elems = f.splitn(2, '#');
             return Ok(Self::Flake {
                 reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(elems.next().map(|s| s.to_string()).unwrap_or_default()),
+                attribute: parse_attribute(
+                    elems
+                        .next()
+                        .map(std::string::ToString::to_string)
+                        .unwrap_or_default(),
+                ),
             });
         }
 
@@ -252,37 +286,35 @@ where
 
     res.push(elem);
 
-    if in_quote {
-        panic!("Failed to parse attribute: {}", s);
-    }
+    assert!(!in_quote, "Failed to parse attribute: {s}");
 
     res
 }
 
 #[test]
 fn test_parse_attribute() {
-    assert_eq!(parse_attribute(r#"foo.bar"#), vec!["foo", "bar"]);
+    assert_eq!(parse_attribute(r"foo.bar"), vec!["foo", "bar"]);
     assert_eq!(parse_attribute(r#"foo."bar.baz""#), vec!["foo", "bar.baz"]);
     let v: Vec<String> = vec![];
-    assert_eq!(parse_attribute(""), v)
+    assert_eq!(parse_attribute(""), v);
 }
 
 impl Installable {
     pub fn to_args(&self) -> Vec<String> {
         let mut res = Vec::new();
         match self {
-            Installable::Flake {
+            Self::Flake {
                 reference,
                 attribute,
             } => {
                 res.push(format!("{reference}#{}", join_attribute(attribute)));
             }
-            Installable::File { path, attribute } => {
+            Self::File { path, attribute } => {
                 res.push(String::from("--file"));
                 res.push(path.to_str().unwrap().to_string());
                 res.push(join_attribute(attribute));
             }
-            Installable::Expression {
+            Self::Expression {
                 expression,
                 attribute,
             } => {
@@ -290,7 +322,7 @@ impl Installable {
                 res.push(expression.to_string());
                 res.push(join_attribute(attribute));
             }
-            Installable::Store { path } => res.push(path.to_str().unwrap().to_string()),
+            Self::Store { path } => res.push(path.to_str().unwrap().to_string()),
         }
 
         res
@@ -335,7 +367,7 @@ where
         let s = elem.as_ref();
 
         if s.contains('.') {
-            res.push_str(&format!(r#""{}""#, s));
+            res.push_str(&format!(r#""{s}""#));
         } else {
             res.push_str(s);
         }
@@ -351,12 +383,12 @@ fn test_join_attribute() {
 }
 
 impl Installable {
-    pub fn str_kind(&self) -> &str {
+    pub const fn str_kind(&self) -> &str {
         match self {
-            Installable::Flake { .. } => "flake",
-            Installable::File { .. } => "file",
-            Installable::Store { .. } => "store path",
-            Installable::Expression { .. } => "expression",
+            Self::Flake { .. } => "flake",
+            Self::File { .. } => "file",
+            Self::Store { .. } => "store path",
+            Self::Expression { .. } => "expression",
         }
     }
 }

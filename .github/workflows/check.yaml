@@ -1,0 +1,37 @@
+name: "Check formating & lints"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches-ignore:
+      - 'update-*'
+
+jobs:
+  treewide-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: cachix/install-nix-action@master
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Unlike the clippy lints below, this should always pass.
+      - name: Check Formatting
+        run: |
+          # Run cargo fmt in check mode
+          cargo fmt --check
+
+
+      # We run clippy with lints that help avoid overall low-quality code or what is called "code smell."
+      # Stylistic lints (e.g., clippy::style and clippy::complexity) are avoided but it is a good idea to
+      # follow those while working on the codebase.
+      - name: Clippy Lints
+        run: |
+          # Lint Changes
+          cargo clippy -- -W clippy::pedantic -W clippy::correctness -W clippy::suspicious
+

@@ -14,7 +14,7 @@ pub struct GenerationInfo {
     /// Date on switch a generation was built
     pub date: String,
 
-    /// NixOS version derived from `nixos-version`
+    /// `NixOS` version derived from `nixos-version`
     pub nixos_version: String,
 
     /// Version of the bootable kernel for a given generation
@@ -66,7 +66,7 @@ pub fn describe(generation_dir: &Path, current_profile: &Path) -> Option<Generat
         .join("kernel")
         .canonicalize()
         .ok()
-        .and_then(|path| path.parent().map(|p| p.to_path_buf()))
+        .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
         .unwrap_or_else(|| PathBuf::from("Unknown"));
 
     let kernel_modules_dir = kernel_dir.join("lib/modules");
@@ -195,9 +195,10 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
     // Parse all dates at once and cache them
     let mut parsed_dates = HashMap::with_capacity(generations.len());
     for gen in &generations {
-        let date = DateTime::parse_from_rfc3339(&gen.date)
-            .map(|dt| dt.with_timezone(&Local))
-            .unwrap_or_else(|_| Local.timestamp_opt(0, 0).unwrap());
+        let date = DateTime::parse_from_rfc3339(&gen.date).map_or_else(
+            |_| Local.timestamp_opt(0, 0).unwrap(),
+            |dt| dt.with_timezone(&Local),
+        );
         parsed_dates.insert(
             gen.date.clone(),
             date.format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -216,7 +217,7 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
         println!("Error getting current generation!");
     }
 
-    println!("Closure Size: {}", closure);
+    println!("Closure Size: {closure}");
     println!();
 
     // Determine column widths for pretty printing
@@ -256,7 +257,7 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
             generation
                 .specialisations
                 .iter()
-                .map(|s| format!("*{}", s))
+                .map(|s| format!("*{s}"))
                 .collect::<Vec<String>>()
                 .join(" ")
         };

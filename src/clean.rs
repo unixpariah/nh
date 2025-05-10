@@ -15,7 +15,7 @@ use regex::Regex;
 use tracing::{debug, info, instrument, span, warn, Level};
 use uzers::os::unix::UserExt;
 
-use crate::{commands::Command, *};
+use crate::{commands::Command, interface, Result};
 
 // Nix impl:
 // https://github.com/NixOS/nix/blob/master/src/nix-collect-garbage/nix-collect-garbage.cc
@@ -42,12 +42,12 @@ impl interface::CleanMode {
         // What profiles to clean depending on the call mode
         let uid = nix::unistd::Uid::effective();
         let args = match self {
-            interface::CleanMode::Profile(args) => {
+            Self::Profile(args) => {
                 profiles.push(args.profile.clone());
                 is_profile_clean = true;
                 &args.common
             }
-            interface::CleanMode::All(args) => {
+            Self::All(args) => {
                 if !uid.is_root() {
                     crate::self_elevate();
                 }
@@ -72,7 +72,7 @@ impl interface::CleanMode {
                 }
                 args
             }
-            interface::CleanMode::User(args) => {
+            Self::User(args) => {
                 if uid.is_root() {
                     bail!("nh clean user: don't run me as root!");
                 }
@@ -129,7 +129,7 @@ impl interface::CleanMode {
                     AccessFlags::F_OK | AccessFlags::W_OK,
                     AtFlags::AT_SYMLINK_NOFOLLOW,
                 ) {
-                    Ok(_) => true,
+                    Ok(()) => true,
                     Err(errno) => match errno {
                         Errno::EACCES | Errno::ENOENT => false,
                         _ => {
@@ -191,7 +191,7 @@ impl interface::CleanMode {
             }
             println!();
         }
-        for (profile, generations_tagged) in profiles_tagged.iter() {
+        for (profile, generations_tagged) in &profiles_tagged {
             println!("{}", profile.to_string_lossy().blue().bold());
             for (gen, tbr) in generations_tagged.iter().rev() {
                 if *tbr {
@@ -218,7 +218,7 @@ impl interface::CleanMode {
                 }
             }
 
-            for (_, generations_tagged) in profiles_tagged.iter() {
+            for generations_tagged in profiles_tagged.values() {
                 for (gen, tbr) in generations_tagged.iter().rev() {
                     if *tbr {
                         remove_path_nofail(&gen.path);
@@ -324,7 +324,7 @@ fn cleanable_generations(
     }
 
     let now = SystemTime::now();
-    for (gen, tbr) in result.iter_mut() {
+    for (gen, tbr) in &mut result {
         match now.duration_since(gen.last_modified) {
             Err(err) => {
                 warn!(?err, ?now, ?gen, "Failed to compare time!");
