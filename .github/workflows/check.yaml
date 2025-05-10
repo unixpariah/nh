@@ -33,5 +33,5 @@ jobs:
       - name: Clippy Lints
         run: |
           # Lint Changes
-          cargo clippy -W clippy::pedantic -W clippy::correctness -W clippy::suspicious
+          cargo clippy -- -W clippy::pedantic -W clippy::correctness -W clippy::suspicious
 
