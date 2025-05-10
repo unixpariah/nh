@@ -1,8 +1,9 @@
-name: "Check formats & lints"
+name: "Check formating & lints"
 
 on:
   workflow_dispatch:
   pull_request:
+    branches: [ "main" ]
   push:
     branches-ignore:
       - 'update-*'
@@ -16,6 +17,10 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Unlike the clippy lints below, this should always pass.
       - name: Check Formatting
         run: |
           # Run cargo fmt in check mode
