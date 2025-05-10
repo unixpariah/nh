@@ -1,33 +1,38 @@
 <!-- markdownlint-disable no-inline-html -->
-<h1 align="center">nh</h1>
+<!-- markdownlint-disable first-line-heading -->
+<div align="center">
+  <h1>nh</h1>
+  <!-- markdownlint-disable line-length -->
+  <h6>Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
+</div>
 
-<!-- markdownlint-disable line-length -->
-<h6 align="center">Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
+## What Does it Do?
 
-## What does it do?
+NH is a modern helper utility aims to consolidate and reimplement some of the
+commands from the NixOS ecosystem, including relevant 3rd party tools. Our goal
+is to provide a uniform interface with more features, and better ergonomics than
+existing commands.
 
-[nix-output-monitor]: https://github.com/maralorn/nix-output-monitor
-[nvd]: https://khumba.net/projects/nvd
+### Platform Specific Subcommands
 
-Nh is a modern helper utility that is a take at reimplementing some commands
-from the NixOS ecosystem. We aim to provide more features and better ergonomics
-than the existing commands.
+- `nh os` - reimplements `nixos-rebuild`[^1] with the addition of
+  - build-tree displays.
+  - diff of changes.
+  - confirmation.
+- `nh home` - reimplements `home-manager`.
+- `nh darwin` - which reimplements `darwin-rebuild`.
 
-We provide several subcommands, such as:
+[^1]: `nh os` does not yet provide full feature parity with `nixos-rebuild`.
+    While a large collection of subcommands have been implemented, you might be
+    missing some features. Please visit
+    [#254](https://github.com/nix-community/nh/issues/254) for a roadmap.
 
-- `os`, which reimplements `nixos-rebuild`, with a tree of builds, diff and
-  confirmation.
-- `home`, which reimplements `home-manager`.
-- `darwin`, which reimplements `darwin-rebuild`
-- `search`, a super-fast package searching tool (powered by a ElasticSearch
+### Global Subcommands
+
+- `nh search` - a super-fast package searching tool (powered by a ElasticSearch
   client).
-- `clean`, my own take at cleaning GC roots from a NixOS system.
-
-This wouldn't be possible without the programs that nh runs under the hood:
-
-- Tree of builds with [nix-output-monitor].
-- Visualization of the upgrade diff with [nvd].
-- And of course, all the [crates](./Cargo.toml) we depend on.
+- `nh clean` - a re-implementation of `nix-collect-garbage` that also collects
+  gcroots.
 
 <p align="center">
   <img
@@ -39,8 +44,8 @@ This wouldn't be possible without the programs that nh runs under the hood:
 
 ## Installation
 
-The latest, tagged version will is available in Nixpkgs as Nh stable. This
-repository provides the latest development version of Nh, which you can get from
+The latest, tagged version will is available in Nixpkgs as NH stable. This
+repository provides the latest development version of NH, which you can get from
 the flake outputs.
 
 ```sh
@@ -117,12 +122,29 @@ The config would look like this:
 }
 ```
 
+## Hacking
+
+Contributions are always welcome. Just clone the repository and run
+`nix develop.` We also provide a `.envrc` for Direnv users.
+
+Once your changes are complete, remember to run [fix.sh](./fix.sh) to apply
+general formatter and linter rules that will be expected by the CI.
+
+Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
+
+## Attributions
+
+[nix-output-monitor]: https://github.com/maralorn/nix-output-monitor
+[nvd]: https://khumba.net/projects/nvd
+
+NH would not be posible without that nh runs under the hood:
+
+- Tree of builds with [nix-output-monitor].
+- Visualization of the upgrade diff with [nvd].
+- And of course, all the [crates](./Cargo.toml) we depend on.
+
 ## Status
 
 [![Dependency status](https://deps.rs/repo/github/nix-community/nh/status.svg)](https://deps.rs/repo/github/nix-community/nh)
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/nh.svg)](https://repology.org/project/unit/versions)
-
-## Hacking
-
-Just clone and `nix develop`. We also provide a `.envrc` for Direnv.
