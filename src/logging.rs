@@ -11,7 +11,7 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::EnvFilter;
 
-use crate::*;
+use crate::Result;
 
 struct InfoFormatter;
 
@@ -43,7 +43,7 @@ where
 
         if *level != Level::INFO {
             if let (Some(file), Some(line)) = (metadata.file(), metadata.line()) {
-                write!(writer, " (nh/{}:{})", file, line)?;
+                write!(writer, " (nh/{file}:{line})")?;
             }
         }
 
@@ -52,7 +52,7 @@ where
     }
 }
 
-pub(crate) fn setup_logging(verbose: bool) -> Result<()> {
+pub fn setup_logging(verbose: bool) -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .display_location_section(true)
         .panic_section("Please report the bug at https://github.com/nix-community/nh/issues")

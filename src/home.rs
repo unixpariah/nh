@@ -15,7 +15,7 @@ use crate::util::get_hostname;
 
 impl interface::HomeArgs {
     pub fn run(self) -> Result<()> {
-        use HomeRebuildVariant::*;
+        use HomeRebuildVariant::{Build, Switch};
         match self.subcommand {
             HomeSubcommand::Switch(args) => args.rebuild(Switch),
             HomeSubcommand::Build(args) => {
@@ -37,7 +37,7 @@ enum HomeRebuildVariant {
 
 impl HomeRebuildArgs {
     fn rebuild(self, variant: HomeRebuildVariant) -> Result<()> {
-        use HomeRebuildVariant::*;
+        use HomeRebuildVariant::Build;
 
         if self.update_args.update {
             update(&self.common.installable, self.update_args.update_input)?;
@@ -170,10 +170,10 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let mut res = installable.clone();
+    let mut res = installable;
     let extra_args: Vec<OsString> = {
         let mut vec = Vec::new();
-        for elem in extra_args.into_iter() {
+        for elem in extra_args {
             vec.push(elem.as_ref().to_owned());
         }
         vec
@@ -206,7 +206,7 @@ where
             // Check if an explicit configuration name was provided via the flag
             if let Some(config_name) = configuration_name {
                 // Verify the provided configuration exists
-                let func = format!(r#" x: x ? "{}" "#, config_name);
+                let func = format!(r#" x: x ? "{config_name}" "#);
                 let check_res = commands::Command::new("nix")
                     .arg("eval")
                     .args(&extra_args)
@@ -228,29 +228,26 @@ where
                         )
                     })?;
 
-                match check_res.map(|s| s.trim().to_owned()).as_deref() {
-                    Some("true") => {
-                        debug!("Using explicit configuration from flag: {}", config_name);
-                        attribute.push(config_name.clone());
-                        if push_drv {
-                            attribute.extend(toplevel.clone());
+                if check_res.map(|s| s.trim().to_owned()).as_deref() == Some("true") {
+                    debug!("Using explicit configuration from flag: {}", config_name);
+                    attribute.push(config_name);
+                    if push_drv {
+                        attribute.extend(toplevel.clone());
+                    }
+                    found_config = true;
+                } else {
+                    // Explicit config provided but not found
+                    let tried_attr_path = {
+                        let mut attr_path = attribute.clone();
+                        attr_path.push(config_name);
+                        Installable::Flake {
+                            reference: flake_reference,
+                            attribute: attr_path,
                         }
-                        found_config = true;
-                    }
-                    _ => {
-                        // Explicit config provided but not found
-                        let tried_attr_path = {
-                            let mut attr_path = attribute.clone();
-                            attr_path.push(config_name.clone());
-                            Installable::Flake {
-                                reference: flake_reference.clone(),
-                                attribute: attr_path,
-                            }
-                            .to_args()
-                            .join(" ")
-                        };
-                        bail!("Explicitly specified home-manager configuration not found: {tried_attr_path}");
-                    }
+                        .to_args()
+                        .join(" ")
+                    };
+                    bail!("Explicitly specified home-manager configuration not found: {tried_attr_path}");
                 }
             }
 
@@ -260,8 +257,8 @@ where
                 let hostname = get_hostname()?;
                 let mut tried = vec![];
 
-                for attr_name in [format!("{username}@{hostname}"), username.to_string()] {
-                    let func = format!(r#" x: x ? "{}" "#, attr_name);
+                for attr_name in [format!("{username}@{hostname}"), username] {
+                    let func = format!(r#" x: x ? "{attr_name}" "#);
                     let check_res = commands::Command::new("nix")
                         .arg("eval")
                         .args(&extra_args)
@@ -293,7 +290,7 @@ where
                     match check_res.map(|s| s.trim().to_owned()).as_deref() {
                         Some("true") => {
                             debug!("Using automatically detected configuration: {}", attr_name);
-                            attribute.push(attr_name.clone());
+                            attribute.push(attr_name);
                             if push_drv {
                                 attribute.extend(toplevel.clone());
                             }

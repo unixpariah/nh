@@ -3,7 +3,7 @@ use color_eyre::Result;
 use tracing::instrument;
 
 use crate::interface::Main;
-use crate::*;
+use crate::interface;
 
 impl interface::CompletionArgs {
     #[instrument(ret, level = "trace")]

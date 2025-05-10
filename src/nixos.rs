@@ -25,7 +25,7 @@ const SPEC_LOCATION: &str = "/etc/specialisation";
 
 impl interface::OsArgs {
     pub fn run(self) -> Result<()> {
-        use OsRebuildVariant::*;
+        use OsRebuildVariant::{Boot, Build, Switch, Test};
         match self.subcommand {
             OsSubcommand::Boot(args) => args.rebuild(Boot, None),
             OsSubcommand::Test(args) => args.rebuild(Test, None),
@@ -64,7 +64,7 @@ impl OsBuildVmArgs {
 impl OsRebuildArgs {
     // final_attr is the attribute of config.system.build.X to evaluate.
     fn rebuild(self, variant: OsRebuildVariant, final_attr: Option<String>) -> Result<()> {
-        use OsRebuildVariant::*;
+        use OsRebuildVariant::{Boot, Build, BuildVm, Switch, Test};
 
         if self.build_host.is_some() || self.target_host.is_some() {
             // if it fails its okay
@@ -158,7 +158,7 @@ impl OsRebuildArgs {
         let target_specialisation = if self.no_specialisation {
             None
         } else {
-            current_specialisation.or_else(|| self.specialisation.to_owned())
+            current_specialisation.or_else(|| self.specialisation.clone())
         };
 
         debug!("target_specialisation: {target_specialisation:?}");
@@ -183,7 +183,7 @@ impl OsRebuildArgs {
                 .message("Comparing changes")
                 .run()?;
         } else {
-            debug!("Not running nvd as the target hostname is different from the system hostname.")
+            debug!("Not running nvd as the target hostname is different from the system hostname.");
         }
 
         if self.common.dry || matches!(variant, Build | BuildVm) {
@@ -207,7 +207,7 @@ impl OsRebuildArgs {
                 .args([
                     "copy",
                     "--to",
-                    format!("ssh://{}", target_host).as_str(),
+                    format!("ssh://{target_host}").as_str(),
                     target_profile.to_str().unwrap(),
                 ])
                 .message("Copying configuration to target")
@@ -247,7 +247,7 @@ impl OsRebuildArgs {
 
             Command::new(switch_to_configuration)
                 .arg("boot")
-                .ssh(self.target_host.clone())
+                .ssh(self.target_host)
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .run()?;
@@ -376,7 +376,7 @@ impl OsRollbackArgs {
             .elevate(elevate)
             .run()
         {
-            Ok(_) => {
+            Ok(()) => {
                 info!(
                     "Successfully rolled back to generation {}",
                     target_generation.number
@@ -388,7 +388,7 @@ impl OsRollbackArgs {
                 // If activation fails, rollback the profile
                 if rollback_profile && current_gen_number > 0 {
                     let current_gen_link =
-                        profile_dir.join(format!("system-{}-link", current_gen_number));
+                        profile_dir.join(format!("system-{current_gen_number}-link"));
 
                     Command::new("ln")
                         .arg("-sfn") // Force, symbolic link
@@ -526,7 +526,7 @@ pub fn toplevel_for<S: AsRef<str>>(
     installable: Installable,
     final_attr: &str,
 ) -> Installable {
-    let mut res = installable.clone();
+    let mut res = installable;
     let hostname = hostname.as_ref().to_owned();
 
     let toplevel = ["config", "system", "build", final_attr]

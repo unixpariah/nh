@@ -10,7 +10,7 @@ pub fn update(installable: &Installable, input: Option<String>) -> Result<()> {
             let mut cmd = Command::new("nix").args(["flake", "update"]);
 
             if let Some(i) = input {
-                cmd = cmd.arg(&i).message(format!("Updating flake input {}", i));
+                cmd = cmd.arg(&i).message(format!("Updating flake input {i}"));
             } else {
                 cmd = cmd.message("Updating all flake inputs");
             }

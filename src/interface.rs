@@ -107,7 +107,7 @@ pub enum OsSubcommand {
     /// Rollback to a previous generation
     Rollback(OsRollbackArgs),
 
-    /// Build a NixOS VM image
+    /// Build a `NixOS` VM image
     BuildVm(OsBuildVmArgs),
 }
 

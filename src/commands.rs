@@ -43,12 +43,12 @@ impl Command {
         }
     }
 
-    pub fn elevate(mut self, elevate: bool) -> Self {
+    pub const fn elevate(mut self, elevate: bool) -> Self {
         self.elevate = elevate;
         self
     }
 
-    pub fn dry(mut self, dry: bool) -> Self {
+    pub const fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
         self
     }
@@ -163,7 +163,7 @@ pub struct Build {
 }
 
 impl Build {
-    pub fn new(installable: Installable) -> Self {
+    pub const fn new(installable: Installable) -> Self {
         Self {
             message: None,
             installable,
@@ -183,7 +183,7 @@ impl Build {
         self
     }
 
-    pub fn nom(mut self, yes: bool) -> Self {
+    pub const fn nom(mut self, yes: bool) -> Self {
         self.nom = yes;
         self
     }
