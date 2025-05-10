@@ -26,10 +26,7 @@ dialoguer = { version = "0.11.0", default-features = false }
 elasticsearch-dsl = "0.4.19"
 hostname = "0.4"
 humantime = "2.1.0"
-nix = { version = "0.29.0", default-features = false, features = [
-    "fs",
-    "user",
-] }
+nix = { version = "0.30.1", default-features = false, features = ["fs", "user"] }
 once_cell = "1.18.0"
 owo-colors = "4.0.0"
 regex = "1.8.4"
