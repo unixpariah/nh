@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-linux:
+    name: "Build NH on Linux"
     runs-on: ubuntu-latest
-
     steps:
       - uses: cachix/install-nix-action@master
         with:
@@ -21,13 +21,8 @@ jobs:
       - run: nix build -L --no-link
         name: Build
 
-      - run: |
-          eval "$(nix print-dev-env)"
-          ./fix.sh
-          git diff-index --quiet HEAD
-        name: Check formatting
-
-  Test_Darwin:
+  build-darwin:
+    name: "Build NH on Darwin"
     runs-on: macos-latest
 
     steps:
@@ -40,6 +35,9 @@ jobs:
       - run: nix build -L --no-link
         name: Build
 
+      # FIXME: this should be moved out of the build workflow. It is **not** a build job
+      # and opens the door to CI failures due to upstream (nix-darwin) errors. This should
+      # instead me made into a VM test.
       - run: |
           mkdir flake
           cd flake
