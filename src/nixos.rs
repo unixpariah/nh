@@ -459,7 +459,7 @@ fn find_previous_generation() -> Result<generations::GenerationInfo> {
             if let Some(filename) = path.file_name() {
                 if let Some(name) = filename.to_str() {
                     if name.starts_with("system-") && name.ends_with("-link") {
-                        return generations::describe(&path, &profile_path);
+                        return generations::describe(&path);
                     }
                 }
             }
@@ -505,7 +505,7 @@ fn find_generation_by_number(number: u64) -> Result<generations::GenerationInfo>
             if let Some(filename) = path.file_name() {
                 if let Some(name) = filename.to_str() {
                     if name.starts_with("system-") && name.ends_with("-link") {
-                        return generations::describe(&path, &profile_path);
+                        return generations::describe(&path);
                     }
                 }
             }
@@ -530,11 +530,7 @@ fn get_current_generation_number() -> Result<u64> {
             .parent()
             .unwrap_or(Path::new("/nix/var/nix/profiles")),
     )?
-    .filter_map(|entry| {
-        entry
-            .ok()
-            .and_then(|e| generations::describe(&e.path(), &profile_path))
-    })
+    .filter_map(|entry| entry.ok().and_then(|e| generations::describe(&e.path())))
     .collect();
 
     let current_gen = generations
@@ -679,7 +675,7 @@ impl OsGenerationsArgs {
 
         let descriptions: Vec<generations::GenerationInfo> = generations
             .iter()
-            .filter_map(|gen_dir| generations::describe(gen_dir, &profile))
+            .filter_map(|gen_dir| generations::describe(gen_dir))
             .collect();
 
         generations::print_info(descriptions);
