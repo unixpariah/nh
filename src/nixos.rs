@@ -181,10 +181,8 @@ impl OsRebuildArgs {
         debug!("Target profile path: {}", target_profile.display());
         debug!("Target profile exists: {}", target_profile.exists());
 
-        // Take a strong reference to out_path to prevent premature dropping
-        // This prevents the tempdir from being dropped early, which would cause nvd diff to fail
-        #[allow(unused_variables)]
-        let keep_alive = out_path.get_path().to_owned();
+        // Note: out_path itself is kept alive until the end of this function,
+        // which prevents the tempdir (if any) from being dropped early
 
         if !target_profile
             .try_exists()
