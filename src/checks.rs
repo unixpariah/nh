@@ -73,9 +73,13 @@ pub fn check_nix_features() -> Result<()> {
 
     let mut required_features = vec!["nix-command", "flakes"];
 
-    // Lix still uses repl-flake, which is removed in the latest version of Nix.
+    // Lix up until 2.93.0 uses repl-flake, which is removed in the latest version of Nix.
     if util::is_lix()? {
-        required_features.push("repl-flake");
+        let repl_flake_removed_in_lix_version = Version::parse("2.93.0")?;
+        let current_lix_version = Version::parse(&util::get_nix_version()?)?;
+        if current_lix_version < repl_flake_removed_in_lix_version {
+            required_features.push("repl-flake");
+        }
     }
 
     tracing::debug!("Required Nix features: {}", required_features.join(", "));
