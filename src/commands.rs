@@ -29,6 +29,7 @@ pub struct Command {
     args: Vec<OsString>,
     elevate: bool,
     ssh: Option<String>,
+    show_output: bool,
 }
 
 impl Command {
@@ -40,6 +41,7 @@ impl Command {
             args: vec![],
             elevate: false,
             ssh: None,
+            show_output: false,
         }
     }
 
@@ -50,6 +52,11 @@ impl Command {
 
     pub const fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
+        self
+    }
+
+    pub const fn show_output(mut self, show_output: bool) -> Self {
+        self.show_output = show_output;
         self
     }
 
@@ -113,8 +120,15 @@ impl Command {
         } else {
             Exec::cmd(&self.command).args(&self.args)
         };
-        let cmd =
-            ssh_wrap(cmd.stderr(Redirection::None), self.ssh.as_deref()).stdout(Redirection::None);
+        // Configure output redirection based on show_output setting
+        let cmd = ssh_wrap(
+            if self.show_output {
+                cmd.stderr(Redirection::Merge)
+            } else {
+                cmd.stderr(Redirection::None).stdout(Redirection::None)
+            },
+            self.ssh.as_deref(),
+        );
 
         if let Some(m) = &self.message {
             info!("{}", m);

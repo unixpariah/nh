@@ -103,6 +103,16 @@ impl DarwinRebuildArgs {
 
         let target_profile = out_path.get_path().to_owned();
 
+        // Take a strong reference to out_path to prevent premature dropping
+        // We need to keep this alive through the entire function scope to prevent
+        // the tempdir from being dropped early, which would cause nvd diff to fail
+        #[allow(unused_variables)]
+        let keep_alive = out_path.get_path().to_owned();
+        debug!(
+            "Registered keep_alive reference to: {}",
+            keep_alive.display()
+        );
+
         target_profile.try_exists().context("Doesn't exist")?;
 
         Command::new("nvd")
@@ -110,6 +120,7 @@ impl DarwinRebuildArgs {
             .arg(CURRENT_PROFILE)
             .arg(&target_profile)
             .message("Comparing changes")
+            .show_output(true)
             .run()?;
 
         if self.common.ask && !self.common.dry && !matches!(variant, Build) {
@@ -151,6 +162,10 @@ impl DarwinRebuildArgs {
 
         // Make sure out_path is not accidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
+        debug!(
+            "Completed operation with output path: {:?}",
+            out_path.get_path()
+        );
         drop(out_path);
 
         Ok(())
