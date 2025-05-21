@@ -200,26 +200,18 @@ impl OsRebuildArgs {
             && self.target_host.is_none()
             && system_hostname.map_or(true, |h| h == target_hostname)
         {
-            // Verify the target_profile path exists before attempting to use it
-            if matches!(target_profile.try_exists(), Ok(true)) {
-                debug!(
-                    "Comparing with target profile: {}",
-                    target_profile.display()
-                );
+            debug!(
+                "Comparing with target profile: {}",
+                target_profile.display()
+            );
 
-                Command::new("nvd")
-                    .arg("diff")
-                    .arg(CURRENT_PROFILE)
-                    .arg(&target_profile)
-                    .message("Comparing changes")
-                    .show_output(true)
-                    .run()?;
-            } else {
-                warn!(
-                    "Cannot compare changes - target profile path does not exist: {}",
-                    target_profile.display()
-                );
-            }
+            Command::new("nvd")
+                .arg("diff")
+                .arg(CURRENT_PROFILE)
+                .arg(&target_profile)
+                .message("Comparing changes")
+                .show_output(true)
+                .run()?;
         } else {
             debug!("Not running nvd as the target hostname is different from the system hostname.");
         }
