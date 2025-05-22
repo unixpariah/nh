@@ -56,6 +56,7 @@ enum OsRebuildVariant {
 impl OsBuildVmArgs {
     fn build_vm(self) -> Result<()> {
         let final_attr = get_final_attr(true, self.with_bootloader);
+        debug!("Building VM with attribute: {}", final_attr);
         self.common
             .rebuild(OsRebuildVariant::BuildVm, Some(final_attr))
     }
@@ -97,7 +98,16 @@ impl OsRebuildArgs {
             Some(h) => h.to_owned(),
             None => match &system_hostname {
                 Some(hostname) => {
-                    tracing::warn!("Guessing system is {hostname} for a VM image. If this isn't intended, use --hostname to change.");
+                    // Only show the warning if we're explicitly building a VM
+                    // by directly calling build_vm(), not when the BuildVm variant
+                    // is used internally via other code paths
+                    if matches!(variant, OsRebuildVariant::BuildVm)
+                        && final_attr
+                            .as_deref()
+                            .map_or(false, |attr| attr == "vm" || attr == "vmWithBootLoader")
+                    {
+                        tracing::warn!("Guessing system is {hostname} for a VM image. If this isn't intended, use --hostname to change.");
+                    }
                     hostname.clone()
                 }
                 None => return Err(eyre!("Unable to fetch hostname, and no hostname supplied.")),
@@ -143,7 +153,6 @@ impl OsRebuildArgs {
             BuildVm => "Building NixOS VM image",
             _ => "Building NixOS configuration",
         };
-
         commands::Build::new(toplevel)
             .extra_arg("--out-link")
             .extra_arg(out_path.get_path())
@@ -168,19 +177,38 @@ impl OsRebuildArgs {
             Some(spec) => out_path.get_path().join("specialisation").join(spec),
         };
 
-        debug!("exists: {}", target_profile.exists());
+        debug!("Output path: {}", out_path.get_path().display());
+        debug!("Target profile path: {}", target_profile.display());
+        debug!("Target profile exists: {}", target_profile.exists());
 
-        target_profile.try_exists().context("Doesn't exist")?;
+        // Note: out_path itself is kept alive until the end of this function,
+        // which prevents the tempdir (if any) from being dropped early
+
+        if !target_profile
+            .try_exists()
+            .context("Failed to check if target profile exists")?
+        {
+            return Err(eyre!(
+                "Target profile path does not exist: {}",
+                target_profile.display()
+            ));
+        }
 
         if self.build_host.is_none()
             && self.target_host.is_none()
             && system_hostname.map_or(true, |h| h == target_hostname)
         {
+            debug!(
+                "Comparing with target profile: {}",
+                target_profile.display()
+            );
+
             Command::new("nvd")
                 .arg("diff")
                 .arg(CURRENT_PROFILE)
                 .arg(&target_profile)
                 .message("Comparing changes")
+                .show_output(true)
                 .run()?;
         } else {
             debug!("Not running nvd as the target hostname is different from the system hostname.");
@@ -253,8 +281,12 @@ impl OsRebuildArgs {
                 .run()?;
         }
 
-        // Make sure out_path is not accidentally dropped
+        // Make sure out_path is not acidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
+        debug!(
+            "Completed operation with output path: {:?}",
+            out_path.get_path()
+        );
         drop(out_path);
 
         Ok(())
@@ -305,6 +337,7 @@ impl OsRollbackArgs {
             .arg(CURRENT_PROFILE)
             .arg(&generation_link)
             .message("Comparing changes")
+            .show_output(true)
             .run()?;
 
         if self.dry {
@@ -345,9 +378,6 @@ impl OsRollbackArgs {
             .message("Setting system profile")
             .run()?;
 
-        // Set up rollback protection flag
-        let mut rollback_profile = false;
-
         // Determine the correct profile to use with specialisations
         let final_profile = match &target_specialisation {
             None => generation_link,
@@ -383,10 +413,8 @@ impl OsRollbackArgs {
                 );
             }
             Err(e) => {
-                rollback_profile = true;
-
                 // If activation fails, rollback the profile
-                if rollback_profile && current_gen_number > 0 {
+                if current_gen_number > 0 {
                     let current_gen_link =
                         profile_dir.join(format!("system-{current_gen_number}-link"));
 
@@ -421,7 +449,7 @@ fn find_previous_generation() -> Result<generations::GenerationInfo> {
             if let Some(filename) = path.file_name() {
                 if let Some(name) = filename.to_str() {
                     if name.starts_with("system-") && name.ends_with("-link") {
-                        return generations::describe(&path, &profile_path);
+                        return generations::describe(&path);
                     }
                 }
             }
@@ -467,7 +495,7 @@ fn find_generation_by_number(number: u64) -> Result<generations::GenerationInfo>
             if let Some(filename) = path.file_name() {
                 if let Some(name) = filename.to_str() {
                     if name.starts_with("system-") && name.ends_with("-link") {
-                        return generations::describe(&path, &profile_path);
+                        return generations::describe(&path);
                     }
                 }
             }
@@ -492,11 +520,7 @@ fn get_current_generation_number() -> Result<u64> {
             .parent()
             .unwrap_or(Path::new("/nix/var/nix/profiles")),
     )?
-    .filter_map(|entry| {
-        entry
-            .ok()
-            .and_then(|e| generations::describe(&e.path(), &profile_path))
-    })
+    .filter_map(|entry| entry.ok().and_then(|e| generations::describe(&e.path())))
     .collect();
 
     let current_gen = generations
@@ -641,7 +665,7 @@ impl OsGenerationsArgs {
 
         let descriptions: Vec<generations::GenerationInfo> = generations
             .iter()
-            .filter_map(|gen_dir| generations::describe(gen_dir, &profile))
+            .filter_map(|gen_dir| generations::describe(gen_dir))
             .collect();
 
         generations::print_info(descriptions);

@@ -112,10 +112,17 @@ impl HomeRebuildArgs {
 
         debug!("target_specialisation: {target_specialisation:?}");
 
-        let target_profile: Box<dyn crate::util::MaybeTempPath> = match &target_specialisation {
-            None => out_path,
-            Some(spec) => Box::new(out_path.get_path().join("specialisation").join(spec)),
-        };
+        let target_profile: Box<dyn crate::util::MaybeTempPath> =
+            if let Some(spec) = &target_specialisation {
+                Box::new(out_path.get_path().join("specialisation").join(spec))
+            } else {
+                out_path
+            };
+
+        // Take a strong reference to ensure the TempDir isn't dropped
+        // This prevents early dropping of the tempdir, which causes nvd diff to fail
+        #[allow(unused_variables)]
+        let keep_alive = target_profile.get_path().to_owned();
 
         // just do nothing for None case (fresh installs)
         if let Some(generation) = prev_generation {
@@ -124,6 +131,7 @@ impl HomeRebuildArgs {
                 .arg(generation)
                 .arg(target_profile.get_path())
                 .message("Comparing changes")
+                .show_output(true)
                 .run()?;
         }
 
@@ -154,6 +162,10 @@ impl HomeRebuildArgs {
 
         // Make sure out_path is not accidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
+        debug!(
+            "Completed operation with output path: {:?}",
+            target_profile.get_path()
+        );
         drop(target_profile);
 
         Ok(())
