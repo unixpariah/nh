@@ -1,10 +1,8 @@
 {
-  stdenv,
   lib,
   rustPlatform,
   installShellFiles,
   makeBinaryWrapper,
-  darwin,
   nvd,
   use-nom ? true,
   nix-output-monitor ? null,
@@ -36,8 +34,6 @@ rustPlatform.buildRustPackage {
     installShellFiles
     makeBinaryWrapper
   ];
-
-  buildInputs = lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.SystemConfiguration ];
 
   postInstall = ''
     mkdir completions
