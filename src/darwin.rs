@@ -160,7 +160,7 @@ impl DarwinRebuildArgs {
                 .run()?;
         }
 
-        // Make sure out_path is not accidentally dropped
+        // Make sure out_path is not acidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
         debug!(
             "Completed operation with output path: {:?}",
