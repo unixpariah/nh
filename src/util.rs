@@ -4,9 +4,39 @@ use std::process::{Command as StdCommand, Stdio};
 use std::str;
 
 use color_eyre::{Result, eyre};
+use once_cell::sync::OnceCell;
 use tempfile::TempDir;
 
 use crate::commands::Command;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NixVariant {
+    Nix,
+    Lix,
+    Determinate,
+}
+
+static NIX_VARIANT: OnceCell<NixVariant> = OnceCell::new();
+
+/// Get the Nix variant (cached)
+pub fn get_nix_variant() -> Result<&'static NixVariant> {
+    NIX_VARIANT.get_or_try_init(|| {
+        let output = Command::new("nix")
+            .arg("--version")
+            .run_capture()?
+            .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
+
+        let output_lower = output.to_lowercase();
+
+        if output_lower.contains("determinate") {
+            Ok(NixVariant::Determinate)
+        } else if output_lower.contains("lix") {
+            Ok(NixVariant::Lix)
+        } else {
+            Ok(NixVariant::Nix)
+        }
+    })
+}
 
 /// Retrieves the installed Nix version as a string.
 ///
@@ -61,34 +91,6 @@ pub fn ensure_ssh_key_login() -> Result<()> {
         .spawn()?
         .wait()?;
     Ok(())
-}
-
-/// Determines if the Nix binary is actually Lix
-///
-/// # Returns
-///
-/// * `Result<bool>` - True if the binary is Lix, false if it's standard Nix
-pub fn is_lix() -> Result<bool> {
-    let output = Command::new("nix")
-        .arg("--version")
-        .run_capture()?
-        .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
-
-    Ok(output.to_lowercase().contains("lix"))
-}
-
-/// Determines if the Nix binary is Determinate Nix
-///
-/// # Returns
-///
-/// * `Result<bool>` - True if the binary is Determinate Nix, false otherwise
-pub fn is_determinate() -> Result<bool> {
-    let output = Command::new("nix")
-        .arg("--version")
-        .run_capture()?
-        .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
-
-    Ok(output.to_lowercase().contains("determinate"))
 }
 
 /// Represents an object that may be a temporary path
