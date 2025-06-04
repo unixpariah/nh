@@ -137,7 +137,7 @@ Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
 [nix-output-monitor]: https://github.com/maralorn/nix-output-monitor
 [nvd]: https://khumba.net/projects/nvd
 
-NH would not be posible without that nh runs under the hood:
+NH would not be possible without that nh runs under the hood:
 
 - Tree of builds with [nix-output-monitor].
 - Visualization of the upgrade diff with [nvd].
