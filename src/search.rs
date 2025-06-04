@@ -115,10 +115,11 @@ impl SearchArgs {
 
         let client = reqwest::blocking::Client::new();
         let req = client
-            // I guess 42 is the version of the backend API
-            // TODO: have a GH action or something check if they updated this thing
+            // NOTE: when the version of the backend API changes,
+            // this file and the corresponding workflow called
+            // nixos-search.yaml have to be updated accordingly.
             .post(format!(
-                "https://search.nixos.org/backend/latest-42-{}/_search",
+                "https://search.nixos.org/backend/latest-43-{}/_search",
                 self.channel
             ))
             .json(&query)
