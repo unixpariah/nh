@@ -72,9 +72,23 @@ pub fn is_lix() -> Result<bool> {
     let output = Command::new("nix")
         .arg("--version")
         .run_capture()?
-        .ok_or_else(|| eyre::eyre!("No output from command"))?;
+        .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
 
     Ok(output.to_lowercase().contains("lix"))
+}
+
+/// Determines if the Nix binary is Determinate Nix
+///
+/// # Returns
+///
+/// * `Result<bool>` - True if the binary is Determinate Nix, false otherwise
+pub fn is_determinate() -> Result<bool> {
+    let output = Command::new("nix")
+        .arg("--version")
+        .run_capture()?
+        .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
+
+    Ok(output.to_lowercase().contains("determinate"))
 }
 
 /// Represents an object that may be a temporary path
