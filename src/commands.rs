@@ -225,17 +225,16 @@ impl Build {
 
         let installable_args = self.installable.to_args();
 
-        let base_command =
-            Exec::cmd("nix")
-                .arg("build")
-                .args(&installable_args)
-                .args(&match &self.builder {
-                    Some(host) => {
-                        vec!["--builders".to_string(), format!("ssh://{host} - - - 100")]
-                    }
-                    None => vec![],
-                })
-                .args(&self.extra_args);
+        let base_command = Exec::cmd("nix")
+            .arg("build")
+            .args(&installable_args)
+            .args(&match &self.builder {
+                Some(host) => {
+                    vec!["--builders".to_string(), format!("ssh://{host} - - - 100")]
+                }
+                None => vec![],
+            })
+            .args(&self.extra_args);
 
         let exit = if self.nom {
             let cmd = {
