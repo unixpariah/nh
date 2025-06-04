@@ -2,10 +2,20 @@
 
 # NH Changelog
 
-## Unreleased
+## 4.1.1
+
+### Changed
+
+- Nh is now built on Cargo 2024 edition. This does not imply any changes for the
+  users, but contributors might need to adapt.
 
 - `nh os build` and `nh os build-vm` now default to placing the output at
   `./result` instead of a temp directory.
+
+### Fixed
+
+- The Elasticsearch backend version has been updated to v43, which fixes failing
+  search commands ([#316](https://github.com/nix-community/nh/pull/316))
 
 ## 4.1.0
 
