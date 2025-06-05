@@ -1,10 +1,15 @@
 use std::{cmp::Ordering, env};
 
 use color_eyre::Result;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use semver::Version;
 use tracing::{debug, warn};
 
 use crate::util::{self, NixVariant};
+
+// Static regex compiled once for version string normalization
+static VERSION_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?").unwrap());
 
 /// Normalizes a version string to be compatible with semver parsing.
 ///
@@ -24,10 +29,7 @@ use crate::util::{self, NixVariant};
 /// * `String` - The normalized version string suitable for semver parsing
 fn normalize_version_string(version: &str) -> String {
     // First, try to extract a version pattern like X.Y or X.Y.Z from the beginning
-    if let Some(captures) = regex::Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?")
-        .unwrap()
-        .captures(version)
-    {
+    if let Some(captures) = VERSION_REGEX.captures(version) {
         let major = captures.get(1).unwrap().as_str();
         let minor = captures.get(2).unwrap().as_str();
         let patch = captures.get(3).map(|m| m.as_str()).unwrap_or("0");
