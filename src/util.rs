@@ -21,13 +21,19 @@ static NIX_VARIANT: OnceCell<NixVariant> = OnceCell::new();
 /// Get the Nix variant (cached)
 pub fn get_nix_variant() -> Result<&'static NixVariant> {
     NIX_VARIANT.get_or_try_init(|| {
-        let output = Command::new("nix")
-            .arg("--version")
-            .run_capture()?
-            .ok_or_else(|| eyre::eyre!("Failed to determine Nix variant"))?;
+        let output = Command::new("nix").arg("--version").run_capture()?;
 
-        let output_lower = output.to_lowercase();
+        // XXX: If running with dry=true or Nix is not installed, output might be None
+        // The latter is less likely to occur, but we still want graceful handling.
+        let output_str = match output {
+            Some(output) => output,
+            None => return Ok(NixVariant::Nix), // default to standard Nix variant
+        };
 
+        let output_lower = output_str.to_lowercase();
+
+        // FIXME: This fails to account for Nix variants we don't check for and
+        // assumes the environment is mainstream Nix.
         if output_lower.contains("determinate") {
             Ok(NixVariant::Determinate)
         } else if output_lower.contains("lix") {
