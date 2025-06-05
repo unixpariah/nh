@@ -293,3 +293,307 @@ impl FeatureRequirements for NoFeatures {
         vec![]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use proptest::prelude::*;
+    use serial_test::serial;
+
+    use super::*;
+
+    // This helps set environment variables safely in tests
+    struct EnvGuard {
+        key: String,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn new(key: &str, value: &str) -> Self {
+            let original = env::var(key).ok();
+            unsafe {
+                env::set_var(key, value);
+            }
+            EnvGuard {
+                key: key.to_string(),
+                original,
+            }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.original {
+                    Some(val) => env::set_var(&self.key, val),
+                    None => env::remove_var(&self.key),
+                }
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_flake_features_always_returns_consistent_results(
+            _dummy in 0..100u32
+        ) {
+            let features = FlakeFeatures;
+            let result1 = features.required_features();
+            let result2 = features.required_features();
+
+            // Property: Multiple calls should return identical results
+            prop_assert_eq!(result1.clone(), result2.clone());
+
+            // Property: Should only contain known experimental features
+            for feature in &result1 {
+                prop_assert!(
+                    *feature == "nix-command" ||
+                    *feature == "flakes",
+                    "Unknown feature: {}", feature
+                );
+            }
+
+            // Property: Results should be deterministic based on variant
+            // We can't control the actual variant in this test, but we can verify
+            // that the logic is consistent
+            if result1.is_empty() {
+                // If empty, variant should be Determinate (when available)
+                // This property holds when the system has Determinate Nix
+            } else {
+                // If not empty, should contain both nix-command and flakes
+                prop_assert!(result1.contains(&"nix-command"));
+                prop_assert!(result1.contains(&"flakes"));
+                prop_assert_eq!(result1.len(), 2);
+            }
+        }
+
+        #[test]
+        fn test_legacy_features_always_empty(
+            _dummy in 0..100u32
+        ) {
+            let features = LegacyFeatures;
+            let result = features.required_features();
+
+            // Property: Legacy features should always be empty
+            prop_assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_no_features_always_empty(
+            _dummy in 0..100u32
+        ) {
+            let features = NoFeatures;
+            let result = features.required_features();
+
+            // Property: NoFeatures should always be empty
+            prop_assert!(result.is_empty());
+        }
+
+        #[test]
+        fn test_repl_features_consistency_with_flake_flag(
+            is_flake in any::<bool>()
+        ) {
+            // Test OS repl features
+            let os_features = OsReplFeatures { is_flake };
+            let os_result = os_features.required_features();
+
+            // Test Home repl features
+            let home_features = HomeReplFeatures { is_flake };
+            let home_result = home_features.required_features();
+
+            // Test Darwin repl features
+            let darwin_features = DarwinReplFeatures { is_flake };
+            let darwin_result = darwin_features.required_features();
+
+            if !is_flake {
+                // Property: Non-flake repls should never require features
+                prop_assert!(os_result.is_empty());
+                prop_assert!(home_result.is_empty());
+                prop_assert!(darwin_result.is_empty());
+            } else {
+                // Property: All flake repls should have consistent base features
+                // (when features are required, they should include nix-command and flakes)
+                for result in [&os_result, &home_result, &darwin_result] {
+                    if !result.is_empty() {
+                        prop_assert!(result.contains(&"nix-command"));
+                        prop_assert!(result.contains(&"flakes"));
+                    }
+                }
+
+                // Property: Only OS repl may have additional features (repl-flake for older Lix)
+                // Home and Darwin should never have more than the base features
+                if !home_result.is_empty() {
+                    prop_assert_eq!(home_result.len(), 2);
+                }
+                if !darwin_result.is_empty() {
+                    prop_assert_eq!(darwin_result.len(), 2);
+                }
+
+                // Property: OS repl may have 2 or 3 features (base + optional repl-flake)
+                if !os_result.is_empty() {
+                    prop_assert!(os_result.len() >= 2 && os_result.len() <= 3);
+                    if os_result.len() == 3 {
+                        prop_assert!(os_result.contains(&"repl-flake"));
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn test_feature_requirements_trait_idempotency(
+            is_flake in any::<bool>()
+        ) {
+            let test_cases = vec![
+                Box::new(FlakeFeatures) as Box<dyn FeatureRequirements>,
+                Box::new(LegacyFeatures) as Box<dyn FeatureRequirements>,
+                Box::new(OsReplFeatures { is_flake }) as Box<dyn FeatureRequirements>,
+                Box::new(HomeReplFeatures { is_flake }) as Box<dyn FeatureRequirements>,
+                Box::new(DarwinReplFeatures { is_flake }) as Box<dyn FeatureRequirements>,
+                Box::new(NoFeatures) as Box<dyn FeatureRequirements>,
+            ];
+
+            for feature_req in test_cases {
+                let result1 = feature_req.required_features();
+                let result2 = feature_req.required_features();
+
+                // Property: Multiple calls should be idempotent
+                prop_assert_eq!(result1.clone(), result2.clone());
+
+                // Property: All features should be valid strings
+                for feature in &result1 {
+                    prop_assert!(!feature.is_empty());
+                    prop_assert!(feature.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+                }
+
+                // Property: No duplicate features
+                let mut sorted = result1.clone();
+                sorted.sort();
+                sorted.dedup();
+                prop_assert_eq!(result1.len(), sorted.len());
+            }
+        }
+    }
+
+    // Regular unit tests for specific scenarios
+    #[test]
+    #[serial]
+    fn test_setup_environment_flake_to_nh_flake_migration() {
+        unsafe {
+            env::remove_var("FLAKE");
+            env::remove_var("NH_FLAKE");
+            env::remove_var("NH_OS_FLAKE");
+            env::remove_var("NH_HOME_FLAKE");
+            env::remove_var("NH_DARWIN_FLAKE");
+        }
+
+        let _guard = EnvGuard::new("FLAKE", "/test/flake");
+
+        let result = setup_environment().expect("setup_environment should succeed");
+
+        assert!(result, "Should warn when migrating FLAKE to NH_FLAKE");
+        assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
+    }
+
+    #[test]
+    #[serial]
+    fn test_setup_environment_no_migration_when_nh_flake_exists() {
+        unsafe {
+            env::remove_var("FLAKE");
+            env::remove_var("NH_FLAKE");
+            env::remove_var("NH_OS_FLAKE");
+            env::remove_var("NH_HOME_FLAKE");
+            env::remove_var("NH_DARWIN_FLAKE");
+        }
+
+        let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
+        let _guard2 = EnvGuard::new("NH_FLAKE", "/existing/flake");
+
+        let result = setup_environment().expect("setup_environment should succeed");
+
+        assert!(!result, "Should not warn when NH_FLAKE already exists");
+        assert_eq!(env::var("NH_FLAKE").unwrap(), "/existing/flake");
+    }
+
+    #[test]
+    #[serial]
+    fn test_setup_environment_no_migration_when_specific_flake_vars_exist() {
+        unsafe {
+            env::remove_var("FLAKE");
+            env::remove_var("NH_FLAKE");
+            env::remove_var("NH_OS_FLAKE");
+            env::remove_var("NH_HOME_FLAKE");
+            env::remove_var("NH_DARWIN_FLAKE");
+        }
+
+        let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
+        let _guard2 = EnvGuard::new("NH_OS_FLAKE", "/os/flake");
+
+        let result = setup_environment().expect("setup_environment should succeed");
+
+        assert!(!result, "Should not warn when specific flake vars exist");
+        assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
+    }
+
+    #[test]
+    #[serial]
+    fn test_check_features_bypassed_with_nh_no_checks() {
+        let _guard = EnvGuard::new("NH_NO_CHECKS", "1");
+
+        let features = FlakeFeatures;
+        let result = features.check_features();
+
+        assert!(
+            result.is_ok(),
+            "check_features should succeed when NH_NO_CHECKS is set"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_verify_nix_environment_bypassed_with_nh_no_checks() {
+        let _guard = EnvGuard::new("NH_NO_CHECKS", "1");
+
+        let result = verify_nix_environment();
+
+        assert!(
+            result.is_ok(),
+            "verify_nix_environment should succeed when NH_NO_CHECKS is set"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_check_nix_version_bypassed_with_nh_no_checks() {
+        let _guard = EnvGuard::new("NH_NO_CHECKS", "1");
+
+        let result = check_nix_version();
+
+        assert!(
+            result.is_ok(),
+            "check_nix_version should succeed when NH_NO_CHECKS is set"
+        );
+    }
+
+    proptest! {
+        #[test]
+        #[serial]
+        fn test_env_guard_cleanup_property(
+            key in "[A-Z_]{1,20}",
+            value in "[a-zA-Z0-9/._-]{1,50}"
+        ) {
+            let original = env::var(&key).ok();
+
+            {
+                let _guard = EnvGuard::new(&key, &value);
+                prop_assert_eq!(env::var(&key).unwrap(), value);
+            }
+
+            // Property: Environment should be restored after guard is dropped
+            match original {
+                Some(orig_val) => prop_assert_eq!(env::var(&key).unwrap(), orig_val),
+                None => prop_assert!(env::var(&key).is_err()),
+            }
+        }
+    }
+}
