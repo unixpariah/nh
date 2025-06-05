@@ -6,6 +6,43 @@ use tracing::{debug, warn};
 
 use crate::util::{self, NixVariant};
 
+/// Normalizes a version string to be compatible with semver parsing.
+///
+/// This function handles Nix's complex version formats by extracting just the
+/// semantic version part. Examples of supported formats:
+/// - "2.25.0-pre" -> "2.25.0"
+/// - "2.24.14-1" -> "2.24.14"
+/// - "2.30pre20250521_76a4d4c2" -> "2.30.0"
+/// - "2.91.1" -> "2.91.1"
+///
+/// # Arguments
+///
+/// * `version` - The raw version string to normalize
+///
+/// # Returns
+///
+/// * `String` - The normalized version string suitable for semver parsing
+fn normalize_version_string(version: &str) -> String {
+    // First, try to extract a version pattern like X.Y or X.Y.Z from the beginning
+    if let Some(captures) = regex::Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?")
+        .unwrap()
+        .captures(version)
+    {
+        let major = captures.get(1).unwrap().as_str();
+        let minor = captures.get(2).unwrap().as_str();
+        let patch = captures.get(3).map(|m| m.as_str()).unwrap_or("0");
+
+        format!("{}.{}.{}", major, minor, patch)
+    } else {
+        // Fallback: split on common separators and take the first part
+        version
+            .split(&['-', '+', 'p', '_'][..])
+            .next()
+            .unwrap_or(version)
+            .to_string()
+    }
+}
+
 /// Verifies if the installed Nix version meets requirements
 ///
 /// # Returns
@@ -46,7 +83,20 @@ pub fn check_nix_version() -> Result<()> {
         _ => MIN_NIX_VERSION,
     };
 
-    let current = Version::parse(&version)?;
+    // Normalize the version string to handle pre-release versions and distro suffixes
+    let normalized_version = normalize_version_string(&version);
+
+    let current = match Version::parse(&normalized_version) {
+        Ok(ver) => ver,
+        Err(e) => {
+            warn!(
+                "Failed to parse Nix version '{}' (normalized: '{}'): {}. Skipping version check.",
+                version, normalized_version, e
+            );
+            return Ok(());
+        }
+    };
+
     let required = Version::parse(min_version)?;
 
     match current.cmp(&required) {
@@ -210,7 +260,8 @@ impl FeatureRequirements for OsReplFeatures {
 
                     // Lix-specific repl-flake feature for older versions
                     if let Ok(version) = util::get_nix_version() {
-                        if let Ok(current) = Version::parse(&version) {
+                        let normalized_version = normalize_version_string(&version);
+                        if let Ok(current) = Version::parse(&normalized_version) {
                             if let Ok(threshold) = Version::parse("2.93.0") {
                                 if current < threshold {
                                     features.push("repl-flake");
@@ -334,6 +385,35 @@ mod tests {
     }
 
     proptest! {
+        #[test]
+        fn test_normalize_version_string_handles_various_formats(
+            major in 1u32..10,
+            minor in 0u32..99,
+            patch in 0u32..99
+        ) {
+            // Test basic semver format
+            let basic = format!("{}.{}.{}", major, minor, patch);
+            prop_assert_eq!(normalize_version_string(&basic), basic.clone());
+
+            // Test with pre-release suffix
+            let pre_release = format!("{}.{}.{}-pre", major, minor, patch);
+            prop_assert_eq!(normalize_version_string(&pre_release), basic.clone());
+
+            // Test with distro suffix
+            let distro = format!("{}.{}.{}-1", major, minor, patch);
+            prop_assert_eq!(normalize_version_string(&distro), basic.clone());
+
+            // Test Nix-style version without patch (should add .0)
+            let no_patch = format!("{}.{}", major, minor);
+            let expected_no_patch = format!("{}.{}.0", major, minor);
+            prop_assert_eq!(normalize_version_string(&no_patch), expected_no_patch);
+
+            // Test complex Nix format like "2.30pre20250521_76a4d4c2"
+            let complex = format!("{}.{}pre20250521_76a4d4c2", major, minor);
+            let expected_complex = format!("{}.{}.0", major, minor);
+            prop_assert_eq!(normalize_version_string(&complex), expected_complex);
+        }
+
         #[test]
         fn test_flake_features_always_returns_consistent_results(
             _dummy in 0..100u32
@@ -476,6 +556,26 @@ mod tests {
     }
 
     // Regular unit tests for specific scenarios
+    #[test]
+    fn test_normalize_version_string_with_real_nix_versions() {
+        // Test the exact format you mentioned
+        assert_eq!(
+            normalize_version_string("2.30pre20250521_76a4d4c2"),
+            "2.30.0"
+        );
+
+        // Test other real Nix version formats
+        assert_eq!(normalize_version_string("2.25.0-pre"), "2.25.0");
+        assert_eq!(normalize_version_string("2.24.14-1"), "2.24.14");
+        assert_eq!(normalize_version_string("2.91.1"), "2.91.1");
+        assert_eq!(normalize_version_string("2.18"), "2.18.0");
+
+        // Test edge cases
+        assert_eq!(normalize_version_string("3.0dev"), "3.0.0");
+        assert_eq!(normalize_version_string("2.22rc1"), "2.22.0");
+        assert_eq!(normalize_version_string("2.19_git_abc123"), "2.19.0");
+    }
+
     #[test]
     #[serial]
     fn test_setup_environment_flake_to_nh_flake_migration() {
