@@ -1,7 +1,7 @@
+use std::sync::LazyLock;
 use std::{cmp::Ordering, env};
 
 use color_eyre::Result;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use semver::Version;
 use tracing::{debug, warn};
@@ -9,7 +9,8 @@ use tracing::{debug, warn};
 use crate::util::{self, NixVariant};
 
 // Static regex compiled once for version string normalization
-static VERSION_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?").unwrap());
+static VERSION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?").unwrap());
 
 /// Normalizes a version string to be compatible with semver parsing.
 ///

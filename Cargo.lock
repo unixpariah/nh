@@ -895,7 +895,6 @@ dependencies = [
  "hostname",
  "humantime",
  "nix",
- "once_cell",
  "owo-colors",
  "proptest",
  "regex",
