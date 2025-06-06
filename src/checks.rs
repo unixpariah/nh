@@ -37,11 +37,18 @@ fn normalize_version_string(version: &str) -> String {
         format!("{}.{}.{}", major, minor, patch)
     } else {
         // Fallback: split on common separators and take the first part
-        version
+        let base_version = version
             .split(&['-', '+', 'p', '_'][..])
             .next()
-            .unwrap_or(version)
-            .to_string()
+            .unwrap_or(version);
+
+        // Version should have all three components (major.minor.patch)
+        let parts: Vec<&str> = base_version.split('.').collect();
+        match parts.len() {
+            1 => format!("{}.0.0", parts[0]),            // "1" -> "1.0.0"
+            2 => format!("{}.{}.0", parts[0], parts[1]), // "1.2" -> "1.2.0"
+            _ => base_version.to_string(),               // "1.2.3" or more parts, use as-is
+        }
     }
 }
 
@@ -576,6 +583,16 @@ mod tests {
         assert_eq!(normalize_version_string("3.0dev"), "3.0.0");
         assert_eq!(normalize_version_string("2.22rc1"), "2.22.0");
         assert_eq!(normalize_version_string("2.19_git_abc123"), "2.19.0");
+
+        // Test fallback cases where patch component is missing
+        assert_eq!(normalize_version_string("1.2-beta"), "1.2.0");
+        assert_eq!(normalize_version_string("3.4+build.1"), "3.4.0");
+        assert_eq!(normalize_version_string("5.6_alpha"), "5.6.0");
+
+        // Test fallback cases where both minor and patch are missing
+        assert_eq!(normalize_version_string("2-rc1"), "2.0.0");
+        assert_eq!(normalize_version_string("4+build"), "4.0.0");
+        assert_eq!(normalize_version_string("7_dev"), "7.0.0");
     }
 
     #[test]
