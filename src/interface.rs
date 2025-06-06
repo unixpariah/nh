@@ -216,7 +216,7 @@ pub struct OsRebuildArgs {
 impl OsRebuildArgs {
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
-        if env::var("NH_OS_FLAKE").is_ok() {
+        if env::var("NH_OS_FLAKE").is_ok_and(|v| !v.is_empty()) {
             return true;
         }
 
@@ -466,7 +466,7 @@ pub struct HomeRebuildArgs {
 impl HomeRebuildArgs {
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
-        if env::var("NH_HOME_FLAKE").is_ok() {
+        if env::var("NH_HOME_FLAKE").is_ok_and(|v| !v.is_empty()) {
             return true;
         }
 
@@ -494,7 +494,7 @@ pub struct HomeReplArgs {
 impl HomeReplArgs {
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
-        if env::var("NH_HOME_FLAKE").is_ok() {
+        if env::var("NH_HOME_FLAKE").is_ok_and(|v| !v.is_empty()) {
             return true;
         }
 
@@ -567,7 +567,7 @@ pub struct DarwinRebuildArgs {
 impl DarwinRebuildArgs {
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
-        if env::var("NH_DARWIN_FLAKE").is_ok() {
+        if env::var("NH_DARWIN_FLAKE").is_ok_and(|v| !v.is_empty()) {
             return true;
         }
 
@@ -589,7 +589,7 @@ pub struct DarwinReplArgs {
 impl DarwinReplArgs {
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
-        if env::var("NH_DARWIN_FLAKE").is_ok() {
+        if env::var("NH_DARWIN_FLAKE").is_ok_and(|v| !v.is_empty()) {
             return true;
         }
 
