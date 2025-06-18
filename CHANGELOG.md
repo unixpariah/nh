@@ -8,6 +8,12 @@
 
 - Nh checks are now more robust in the sense that unnecessary features will not
   be required when the underlying command does not depend on them.
+- The `--update-input` flag now supports being specified multiple times.
+- The `--update-input` flag no longer requires `--update` in order to take
+  effect, and both flags are now considered mutually exclusive.
+  If you specify the `--update` flag, all flake inputs will be updated.
+  If you specify the `--update-input NAME` flag, only the specified flake(s)
+  will be updated.
 
 ### Fixed
 

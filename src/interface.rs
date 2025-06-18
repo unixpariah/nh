@@ -600,11 +600,11 @@ impl DarwinReplArgs {
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
-    #[arg(short = 'u', long = "update")]
+    #[arg(short = 'u', long = "update", conflicts_with = "update_input")]
     /// Update all flake inputs
-    pub update: bool,
+    pub update_all: bool,
 
-    #[arg(short = 'U', long = "update-input")]
-    /// Update a single flake input
-    pub update_input: Option<String>,
+    #[arg(short = 'U', long = "update-input", conflicts_with = "update_all")]
+    /// Update the specified flake input(s)
+    pub update_input: Option<Vec<String>>,
 }
