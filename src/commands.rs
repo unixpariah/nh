@@ -207,7 +207,6 @@ impl Command {
                 cmd = cmd.args(&[
                     "--set-home",
                     &format!("--preserve-env={}", preserve_vars.join(",")),
-                    "env",
                 ]);
             } else {
                 cmd = cmd.arg("--set-home");
