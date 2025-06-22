@@ -10,16 +10,20 @@
   be required when the underlying command does not depend on them.
 - The `--update-input` flag now supports being specified multiple times.
 - The `--update-input` flag no longer requires `--update` in order to take
-  effect, and both flags are now considered mutually exclusive.
-  If you specify the `--update` flag, all flake inputs will be updated.
-  If you specify the `--update-input NAME` flag, only the specified flake(s)
-  will be updated.
+  effect, and both flags are now considered mutually exclusive. If you specify
+  the `--update` flag, all flake inputs will be updated. If you specify the
+  `--update-input NAME` flag, only the specified flake(s) will be updated.
 
 ### Fixed
 
 - Nh will now correctly detect non-semver version strings, such as `x.ygit`.
   Instead of failing the check, we now try to normalize the string and simply
   skip the check with a warning.
+- In the case system switch is disabled (`system.switch enable = false;`) Nh
+  will provide a more descriptive error message hinting at what might be the
+  issue.
+  - We cannot accurately guess what the issue is, but this should be more
+    graceful than simply throwing an error about a missingg path (what path?)
 
 ## 4.1.1
 

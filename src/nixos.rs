@@ -251,8 +251,27 @@ impl OsRebuildArgs {
             // !! Use the target profile aka spec-namespaced
             let switch_to_configuration =
                 target_profile.join("bin").join("switch-to-configuration");
-            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
-            let switch_to_configuration = switch_to_configuration.to_str().unwrap();
+
+            if !switch_to_configuration.exists() {
+                return Err(eyre!(
+                    "The 'switch-to-configuration binary' is missing from the built configuration.\n
+
+                    This typically happens when system.switch.enable is set to false in your
+                    NixOS configuration. To fix this, please either:\n\
+                    1. Remove 'system.switch.enable = false' from your configuration, or\n\
+                    2. Set 'system.switch.enable = true' explicitly\n
+
+                    If the problem persists, please open an issue on our issue tracker!
+                    "
+                ));
+            }
+
+            let switch_to_configuration = switch_to_configuration
+                .canonicalize()
+                .context("Failed to resolve switch-to-configuration path")?;
+            let switch_to_configuration = switch_to_configuration
+                .to_str()
+                .ok_or_else(|| eyre!("switch-to-configuration path contains invalid UTF-8"))?;
 
             Command::new(switch_to_configuration)
                 .arg("test")
@@ -263,10 +282,15 @@ impl OsRebuildArgs {
         }
 
         if let Boot | Switch = variant {
+            let canonical_out_path = out_path
+                .get_path()
+                .canonicalize()
+                .context("Failed to resolve output path")?;
+
             Command::new("nix")
                 .elevate(elevate)
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
-                .arg(out_path.get_path().canonicalize().unwrap())
+                .arg(&canonical_out_path)
                 .ssh(self.target_host.clone())
                 .run()?;
 
@@ -275,8 +299,23 @@ impl OsRebuildArgs {
                 .get_path()
                 .join("bin")
                 .join("switch-to-configuration");
-            let switch_to_configuration = switch_to_configuration.canonicalize().unwrap();
-            let switch_to_configuration = switch_to_configuration.to_str().unwrap();
+
+            if !switch_to_configuration.exists() {
+                return Err(eyre!(
+                    "The switch-to-configuration binary is missing from the built configuration.\n\
+                    This typically happens when system.switch.enable is set to false in your NixOS configuration.\n\
+                    To fix this, either:\n\
+                    1. Remove 'system.switch.enable = false;' from your configuration, or\n\
+                    2. Set 'system.switch.enable = true;' explicitly"
+                ));
+            }
+
+            let switch_to_configuration = switch_to_configuration
+                .canonicalize()
+                .context("Failed to resolve switch-to-configuration path")?;
+            let switch_to_configuration = switch_to_configuration
+                .to_str()
+                .ok_or_else(|| eyre!("switch-to-configuration path contains invalid UTF-8"))?;
 
             Command::new(switch_to_configuration)
                 .arg("boot")
@@ -405,6 +444,16 @@ impl OsRollbackArgs {
         info!("Activating...");
 
         let switch_to_configuration = final_profile.join("bin").join("switch-to-configuration");
+
+        if !switch_to_configuration.exists() {
+            return Err(eyre!(
+                "The switch-to-configuration binary is missing from the built configuration.\n\
+                    This typically happens when system.switch.enable is set to false in your NixOS configuration.\n\
+                    To fix this, either:\n\
+                    1. Remove 'system.switch.enable = false;' from your configuration, or\n\
+                    2. Set 'system.switch.enable = true;' explicitly"
+            ));
+        }
 
         match Command::new(&switch_to_configuration)
             .arg("switch")
