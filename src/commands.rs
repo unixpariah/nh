@@ -428,3 +428,464 @@ impl Build {
 #[derive(Debug, Error)]
 #[error("Command exited with status {0:?}")]
 pub struct ExitError(ExitStatus);
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+    use std::ffi::OsString;
+
+    use serial_test::serial;
+
+    use super::*;
+
+    // Safely manage environment variables in tests
+    struct EnvGuard {
+        key: String,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn new(key: &str, value: &str) -> Self {
+            let original = env::var(key).ok();
+            unsafe {
+                env::set_var(key, value);
+            }
+            EnvGuard {
+                key: key.to_string(),
+                original,
+            }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.original {
+                    Some(val) => env::set_var(&self.key, val),
+                    None => env::remove_var(&self.key),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_env_action_variants() {
+        // Test that all EnvAction variants are correctly created
+        let set_action = EnvAction::Set("test_value".to_string());
+        let preserve_action = EnvAction::Preserve;
+        let remove_action = EnvAction::Remove;
+
+        match set_action {
+            EnvAction::Set(val) => assert_eq!(val, "test_value"),
+            _ => panic!("Expected Set variant"),
+        }
+
+        assert!(matches!(preserve_action, EnvAction::Preserve));
+        assert!(matches!(remove_action, EnvAction::Remove));
+    }
+
+    #[test]
+    fn test_command_new() {
+        let cmd = Command::new("test-command");
+
+        assert_eq!(cmd.command, OsString::from("test-command"));
+        assert!(!cmd.dry);
+        assert!(cmd.message.is_none());
+        assert!(cmd.args.is_empty());
+        assert!(!cmd.elevate);
+        assert!(cmd.ssh.is_none());
+        assert!(!cmd.show_output);
+        assert!(cmd.env_vars.is_empty());
+    }
+
+    #[test]
+    fn test_command_builder_pattern() {
+        let cmd = Command::new("test")
+            .dry(true)
+            .elevate(true)
+            .show_output(true)
+            .ssh(Some("host".to_string()))
+            .message("test message")
+            .arg("arg1")
+            .args(["arg2", "arg3"]);
+
+        assert!(cmd.dry);
+        assert!(cmd.elevate);
+        assert!(cmd.show_output);
+        assert_eq!(cmd.ssh, Some("host".to_string()));
+        assert_eq!(cmd.message, Some("test message".to_string()));
+        assert_eq!(
+            cmd.args,
+            vec![
+                OsString::from("arg1"),
+                OsString::from("arg2"),
+                OsString::from("arg3")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_preserve_envs() {
+        let cmd = Command::new("test").preserve_envs(["VAR1", "VAR2", "VAR3"]);
+
+        assert_eq!(cmd.env_vars.len(), 3);
+        assert!(matches!(
+            cmd.env_vars.get("VAR1"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("VAR2"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("VAR3"),
+            Some(EnvAction::Preserve)
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn test_with_nix_env() {
+        let _home_guard = EnvGuard::new("HOME", "/test/home");
+        let _user_guard = EnvGuard::new("USER", "testuser");
+
+        let cmd = Command::new("test").with_nix_env();
+
+        // Should preserve HOME and USER as Set actions
+        assert!(
+            matches!(cmd.env_vars.get("HOME"), Some(EnvAction::Set(val)) if val == "/test/home")
+        );
+        assert!(matches!(cmd.env_vars.get("USER"), Some(EnvAction::Set(val)) if val == "testuser"));
+
+        // Should preserve Nix-related variables
+        assert!(matches!(
+            cmd.env_vars.get("PATH"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_CONFIG"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_PATH"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_REMOTE"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_SSL_CERT_FILE"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_USER_CONF_FILES"),
+            Some(EnvAction::Preserve)
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn test_with_nix_env_missing_home_user() {
+        // Test behavior when HOME/USER are not set
+        unsafe {
+            env::remove_var("HOME");
+            env::remove_var("USER");
+        }
+
+        let cmd = Command::new("test").with_nix_env();
+
+        // Should not have HOME or USER in env_vars if they're not set
+        assert!(!cmd.env_vars.contains_key("HOME"));
+        assert!(!cmd.env_vars.contains_key("USER"));
+
+        // Should still preserve Nix-related variables
+        assert!(matches!(
+            cmd.env_vars.get("PATH"),
+            Some(EnvAction::Preserve)
+        ));
+        assert!(matches!(
+            cmd.env_vars.get("NIX_CONFIG"),
+            Some(EnvAction::Preserve)
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn test_with_nh_env() {
+        let _guard1 = EnvGuard::new("NH_TEST_VAR", "test_value");
+        let _guard2 = EnvGuard::new("NH_ANOTHER_VAR", "another_value");
+        let _guard3 = EnvGuard::new("NOT_NH_VAR", "should_not_be_included");
+
+        let cmd = Command::new("test").with_nh_env();
+
+        // Should include NH_* variables as Set actions
+        assert!(
+            matches!(cmd.env_vars.get("NH_TEST_VAR"), Some(EnvAction::Set(val)) if val == "test_value")
+        );
+        assert!(
+            matches!(cmd.env_vars.get("NH_ANOTHER_VAR"), Some(EnvAction::Set(val)) if val == "another_value")
+        );
+
+        // Should not include non-NH variables
+        assert!(!cmd.env_vars.contains_key("NOT_NH_VAR"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_combined_env_methods() {
+        let _home_guard = EnvGuard::new("HOME", "/test/home");
+        let _nh_guard = EnvGuard::new("NH_TEST", "nh_value");
+
+        let cmd = Command::new("test")
+            .with_nix_env()
+            .with_nh_env()
+            .preserve_envs(["EXTRA_VAR"]);
+
+        // Should have HOME from with_nix_env
+        assert!(
+            matches!(cmd.env_vars.get("HOME"), Some(EnvAction::Set(val)) if val == "/test/home")
+        );
+
+        // Should have NH variables from with_nh_env
+        assert!(
+            matches!(cmd.env_vars.get("NH_TEST"), Some(EnvAction::Set(val)) if val == "nh_value")
+        );
+
+        // Should have Nix variables preserved
+        assert!(matches!(
+            cmd.env_vars.get("PATH"),
+            Some(EnvAction::Preserve)
+        ));
+
+        // Should have extra preserved variable
+        assert!(matches!(
+            cmd.env_vars.get("EXTRA_VAR"),
+            Some(EnvAction::Preserve)
+        ));
+    }
+
+    #[test]
+    fn test_env_vars_override_behavior() {
+        let mut cmd = Command::new("test");
+
+        // First add a variable as Preserve
+        cmd.env_vars
+            .insert("TEST_VAR".to_string(), EnvAction::Preserve);
+        assert!(matches!(
+            cmd.env_vars.get("TEST_VAR"),
+            Some(EnvAction::Preserve)
+        ));
+
+        // Then override it as Set
+        cmd.env_vars.insert(
+            "TEST_VAR".to_string(),
+            EnvAction::Set("new_value".to_string()),
+        );
+        assert!(
+            matches!(cmd.env_vars.get("TEST_VAR"), Some(EnvAction::Set(val)) if val == "new_value")
+        );
+    }
+
+    #[test]
+    fn test_build_sudo_cmd_basic() {
+        let cmd = Command::new("test");
+        let sudo_exec = cmd.build_sudo_cmd();
+
+        // Should start with sudo command
+        let cmdline = sudo_exec.to_cmdline_lossy();
+        assert!(cmdline.starts_with("sudo"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_sudo_cmd_with_preserve_vars() {
+        let cmd = Command::new("test").preserve_envs(["VAR1", "VAR2"]);
+
+        let sudo_exec = cmd.build_sudo_cmd();
+        let cmdline = sudo_exec.to_cmdline_lossy();
+
+        // Should contain preserve-env flag with variables
+        assert!(cmdline.contains("--preserve-env="));
+        assert!(cmdline.contains("VAR1"));
+        assert!(cmdline.contains("VAR2"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_sudo_cmd_with_set_vars() {
+        let mut cmd = Command::new("test");
+        cmd.env_vars.insert(
+            "TEST_VAR".to_string(),
+            EnvAction::Set("test_value".to_string()),
+        );
+
+        let sudo_exec = cmd.build_sudo_cmd();
+        let cmdline = sudo_exec.to_cmdline_lossy();
+
+        // Should contain env command with variable
+        assert!(cmdline.contains("env"));
+        assert!(cmdline.contains("TEST_VAR=test_value"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_sudo_cmd_with_remove_vars() {
+        let mut cmd = Command::new("test");
+        cmd.env_vars
+            .insert("VAR_TO_PRESERVE".to_string(), EnvAction::Preserve);
+        cmd.env_vars
+            .insert("VAR_TO_REMOVE".to_string(), EnvAction::Remove);
+
+        let sudo_exec = cmd.build_sudo_cmd();
+        let cmdline = sudo_exec.to_cmdline_lossy();
+
+        // Should preserve only the Preserve variable, not the Remove one
+        if cmdline.contains("--preserve-env=") {
+            assert!(cmdline.contains("VAR_TO_PRESERVE"));
+            assert!(!cmdline.contains("VAR_TO_REMOVE"));
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_sudo_cmd_with_askpass() {
+        let _guard = EnvGuard::new("NH_SUDO_ASKPASS", "/path/to/askpass");
+
+        let cmd = Command::new("test");
+        let sudo_exec = cmd.build_sudo_cmd();
+        let cmdline = sudo_exec.to_cmdline_lossy();
+
+        // Should contain -A flag for askpass
+        assert!(cmdline.contains("-A"));
+    }
+
+    #[test]
+    fn test_build_new() {
+        let installable = Installable::Flake {
+            reference: "github:user/repo".to_string(),
+            attribute: vec!["package".to_string()],
+        };
+
+        let build = Build::new(installable.clone());
+
+        assert!(build.message.is_none());
+        assert_eq!(build.installable.to_args(), installable.to_args());
+        assert!(build.extra_args.is_empty());
+        assert!(!build.nom);
+        assert!(build.builder.is_none());
+    }
+
+    #[test]
+    fn test_build_builder_pattern() {
+        let installable = Installable::Flake {
+            reference: "github:user/repo".to_string(),
+            attribute: vec!["package".to_string()],
+        };
+
+        let build = Build::new(installable)
+            .message("Building package")
+            .extra_arg("--verbose")
+            .extra_args(["--option", "setting", "value"])
+            .nom(true)
+            .builder(Some("build-host".to_string()));
+
+        assert_eq!(build.message, Some("Building package".to_string()));
+        assert_eq!(
+            build.extra_args,
+            vec![
+                OsString::from("--verbose"),
+                OsString::from("--option"),
+                OsString::from("setting"),
+                OsString::from("value")
+            ]
+        );
+        assert!(build.nom);
+        assert_eq!(build.builder, Some("build-host".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_wrap_with_ssh() {
+        let cmd = subprocess::Exec::cmd("echo").arg("hello");
+        let wrapped = ssh_wrap(cmd, Some("user@host"));
+
+        let cmdline = wrapped.to_cmdline_lossy();
+        assert!(cmdline.starts_with("ssh"));
+        assert!(cmdline.contains("-T"));
+        assert!(cmdline.contains("user@host"));
+    }
+
+    #[test]
+    fn test_ssh_wrap_without_ssh() {
+        let cmd = subprocess::Exec::cmd("echo").arg("hello");
+        let wrapped = ssh_wrap(cmd.clone(), None);
+
+        // Should return the original command unchanged
+        assert_eq!(wrapped.to_cmdline_lossy(), cmd.to_cmdline_lossy());
+    }
+
+    #[test]
+    #[serial]
+    fn test_apply_env_to_exec() {
+        let _guard = EnvGuard::new("EXISTING_VAR", "existing_value");
+
+        let mut cmd = Command::new("test");
+        cmd.env_vars.insert(
+            "SET_VAR".to_string(),
+            EnvAction::Set("set_value".to_string()),
+        );
+        cmd.env_vars
+            .insert("EXISTING_VAR".to_string(), EnvAction::Preserve);
+        cmd.env_vars
+            .insert("MISSING_VAR".to_string(), EnvAction::Preserve);
+        cmd.env_vars
+            .insert("REMOVE_VAR".to_string(), EnvAction::Remove);
+
+        let exec = subprocess::Exec::cmd("echo");
+        let result = cmd.apply_env_to_exec(exec);
+
+        // We *can't* easily test the exact environment variables set on Exec,
+        // but we *can* verify the method doesn't panic and returns an Exec
+        let cmdline = result.to_cmdline_lossy();
+        assert!(
+            cmdline.contains("echo"),
+            "Command line should contain 'echo': {}",
+            cmdline
+        );
+    }
+
+    #[test]
+    fn test_exit_error_display() {
+        let exit_status = subprocess::ExitStatus::Exited(1);
+        let error = ExitError(exit_status);
+
+        let error_string = format!("{}", error);
+        assert!(error_string.contains("Command exited with status"));
+        assert!(error_string.contains("Exited(1)"));
+    }
+
+    #[test]
+    fn test_env_action_debug() {
+        let set_action = EnvAction::Set("value".to_string());
+        let preserve_action = EnvAction::Preserve;
+        let remove_action = EnvAction::Remove;
+
+        // Test that Debug is implemented (this will compile-fail if not)
+        let _debug_set = format!("{:?}", set_action);
+        let _debug_preserve = format!("{:?}", preserve_action);
+        let _debug_remove = format!("{:?}", remove_action);
+    }
+
+    #[test]
+    fn test_env_action_clone() {
+        let original = EnvAction::Set("value".to_string());
+        let cloned = original.clone();
+
+        match (original, cloned) {
+            (EnvAction::Set(orig_val), EnvAction::Set(cloned_val)) => {
+                assert_eq!(orig_val, cloned_val);
+            }
+            _ => panic!("Clone should preserve variant and value"),
+        }
+    }
+}
