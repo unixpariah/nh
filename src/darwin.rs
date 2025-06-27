@@ -157,6 +157,7 @@ impl DarwinRebuildArgs {
                 .message("Activating configuration")
                 .elevate(needs_elevation)
                 .dry(self.common.dry)
+                .show_output(true)
                 .run()?;
         }
 

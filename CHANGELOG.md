@@ -13,6 +13,9 @@
   effect, and both flags are now considered mutually exclusive. If you specify
   the `--update` flag, all flake inputs will be updated. If you specify the
   `--update-input NAME` flag, only the specified flake(s) will be updated.
+- `nh darwin switch` now shows the output from the `darwin-rebuild` activation.
+  This allows you to see more details about the activation from `nix-darwin`, as
+  well as `Home Manager`.
 
 ### Fixed
 
