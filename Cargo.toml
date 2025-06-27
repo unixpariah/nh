@@ -1,6 +1,6 @@
 [package]
 name = "nh"
-version = "4.1.1"
+version = "4.1.2"
 edition = "2024"
 license = "EUPL-1.2"
 repository = "https://github.com/nix-community/nh"
@@ -10,32 +10,32 @@ description = "Yet Another Nix Helper"
 anstyle = "1.0.0"
 chrono = "0.4.39"
 clap = { version = "4.0", features = [
-    "cargo",
-    "color",
-    "derive",
-    "env",
-    "unstable-styles",
+  "cargo",
+  "color",
+  "derive",
+  "env",
+  "unstable-styles",
 ] }
 clap_builder = "4.5.9"
 clap_complete = "4.5.8"
 clean-path = "0.2"
 color-eyre = { version = "0.6.2", default-features = false, features = [
-    "track-caller",
+  "track-caller",
 ] }
 dialoguer = { version = "0.11.0", default-features = false }
 elasticsearch-dsl = "0.4.19"
 hostname = "0.4"
 humantime = "2.1.0"
 nix = { version = "0.30.1", default-features = false, features = [
-    "fs",
-    "user",
+  "fs",
+  "user",
 ] }
 owo-colors = "4.0.0"
 regex = "1.8.4"
 reqwest = { version = "0.12.0", features = [
-    "rustls-tls",
-    "blocking",
-    "json",
+  "rustls-tls",
+  "blocking",
+  "json",
 ], default-features = false }
 semver = "1.0.22"
 serde = { version = "1.0.166", features = ["derive"] }
@@ -48,9 +48,9 @@ thiserror = "2.0"
 timeago = { version = "0.4.1", default-features = false }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = [
-    "env-filter",
-    "registry",
-    "std",
+  "env-filter",
+  "registry",
+  "std",
 ] }
 uzers = { version = "0.12.0", default-features = false }
 
