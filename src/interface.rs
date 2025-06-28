@@ -98,11 +98,11 @@ impl NHCommand {
                 }
                 args.run()
             }
-            Self::System(_) => {
+            Self::System(args) => {
                 unsafe {
                     std::env::set_var("NH_CURRENT_COMMAND", "system-manager");
                 }
-                unimplemented!();
+                args.run()
             }
         }
     }
