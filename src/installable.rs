@@ -211,7 +211,7 @@ impl Args for Installable {
                 .value_name("INSTALLABLE")
                 .help("Which installable to use")
                 .long_help(format!(
-                    r#"Which installable to use.
+                    r"Which installable to use.
 Nix accepts various kinds of installables:
 
 [FLAKEREF[#ATTRPATH]]
@@ -231,7 +231,7 @@ Nix accepts various kinds of installables:
 
 [PATH]
     Path or symlink to a /nix/store path
-"#,
+",
                     env::var("NH_FLAKE").unwrap_or_default(),
                     env::var("NH_OS_FLAKE").unwrap_or_default(),
                     env::var("NH_HOME_FLAKE").unwrap_or_default(),
@@ -270,11 +270,11 @@ where
     for char in s.chars() {
         match char {
             '.' => {
-                if !in_quote {
+                if in_quote {
+                    elem.push(char);
+                } else {
                     res.push(elem.clone());
                     elem = String::new();
-                } else {
-                    elem.push(char);
                 }
             }
             '"' => {

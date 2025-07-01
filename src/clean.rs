@@ -120,7 +120,7 @@ impl interface::CleanMode {
                 {
                     debug!("dst doesn't match any gcroot regex, skipping");
                     continue;
-                };
+                }
 
                 // Create a file descriptor for the current working directory
                 let dirfd = nix::fcntl::open(
@@ -207,7 +207,7 @@ impl interface::CleanMode {
                     println!("- {} {}", "DEL".red(), generation.path.to_string_lossy());
                 } else {
                     println!("- {} {}", "OK ".green(), generation.path.to_string_lossy());
-                };
+                }
             }
             println!();
         }

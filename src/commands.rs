@@ -159,10 +159,10 @@ impl Command {
 
         debug!(?cmd);
 
-        if !self.dry {
-            Ok(Some(cmd.capture()?.stdout_str()))
-        } else {
+        if self.dry {
             Ok(None)
+        } else {
+            Ok(Some(cmd.capture()?.stdout_str()))
         }
     }
 }
