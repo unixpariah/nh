@@ -104,7 +104,7 @@ impl OsRebuildArgs {
                     if matches!(variant, OsRebuildVariant::BuildVm)
                         && final_attr
                             .as_deref()
-                            .map_or(false, |attr| attr == "vm" || attr == "vmWithBootLoader")
+                            .is_some_and(|attr| attr == "vm" || attr == "vmWithBootLoader")
                     {
                         tracing::warn!(
                             "Guessing system is {hostname} for a VM image. If this isn't intended, use --hostname to change."
@@ -201,7 +201,7 @@ impl OsRebuildArgs {
 
         if self.build_host.is_none()
             && self.target_host.is_none()
-            && system_hostname.map_or(true, |h| h == target_hostname)
+            && system_hostname.is_none_or(|h| h == target_hostname)
         {
             debug!(
                 "Comparing with target profile: {}",
@@ -245,7 +245,7 @@ impl OsRebuildArgs {
                 ])
                 .message("Copying configuration to target")
                 .run()?;
-        };
+        }
 
         if let Test | Switch = variant {
             // !! Use the target profile aka spec-namespaced
@@ -427,15 +427,15 @@ impl OsRollbackArgs {
             None => generation_link,
             Some(spec) => {
                 let spec_path = generation_link.join("specialisation").join(spec);
-                if !spec_path.exists() {
+                if spec_path.exists() {
+                    spec_path
+                } else {
                     warn!(
                         "Specialisation '{}' does not exist in generation {}",
                         spec, target_generation.number
                     );
                     warn!("Using base configuration without specialisations");
                     generation_link
-                } else {
-                    spec_path
                 }
             }
         };

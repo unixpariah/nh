@@ -18,7 +18,7 @@ static VERSION_REGEX: LazyLock<Regex> =
 /// semantic version part. Examples of supported formats:
 /// - "2.25.0-pre" -> "2.25.0"
 /// - "2.24.14-1" -> "2.24.14"
-/// - "2.30pre20250521_76a4d4c2" -> "2.30.0"
+/// - "`2.30pre20250521_76a4d4c2`" -> "2.30.0"
 /// - "2.91.1" -> "2.91.1"
 ///
 /// # Arguments
@@ -33,9 +33,9 @@ fn normalize_version_string(version: &str) -> String {
     if let Some(captures) = VERSION_REGEX.captures(version) {
         let major = captures.get(1).unwrap().as_str();
         let minor = captures.get(2).unwrap().as_str();
-        let patch = captures.get(3).map(|m| m.as_str()).unwrap_or("0");
+        let patch = captures.get(3).map_or("0", |m| m.as_str());
 
-        format!("{}.{}.{}", major, minor, patch)
+        format!("{major}.{minor}.{patch}")
     } else {
         // Fallback: split on common separators and take the first part
         let base_version = version
@@ -402,25 +402,25 @@ mod tests {
             patch in 0u32..99
         ) {
             // Test basic semver format
-            let basic = format!("{}.{}.{}", major, minor, patch);
+            let basic = format!("{major}.{minor}.{patch}");
             prop_assert_eq!(normalize_version_string(&basic), basic.clone());
 
             // Test with pre-release suffix
-            let pre_release = format!("{}.{}.{}-pre", major, minor, patch);
+            let pre_release = format!("{major}.{minor}.{patch}-pre");
             prop_assert_eq!(normalize_version_string(&pre_release), basic.clone());
 
             // Test with distro suffix
-            let distro = format!("{}.{}.{}-1", major, minor, patch);
+            let distro = format!("{major}.{minor}.{patch}-1");
             prop_assert_eq!(normalize_version_string(&distro), basic.clone());
 
             // Test Nix-style version without patch (should add .0)
-            let no_patch = format!("{}.{}", major, minor);
-            let expected_no_patch = format!("{}.{}.0", major, minor);
+            let no_patch = format!("{major}.{minor}");
+            let expected_no_patch = format!("{major}.{minor}.0");
             prop_assert_eq!(normalize_version_string(&no_patch), expected_no_patch);
 
             // Test complex Nix format like "2.30pre20250521_76a4d4c2"
-            let complex = format!("{}.{}pre20250521_76a4d4c2", major, minor);
-            let expected_complex = format!("{}.{}.0", major, minor);
+            let complex = format!("{major}.{minor}pre20250521_76a4d4c2");
+            let expected_complex = format!("{major}.{minor}.0");
             prop_assert_eq!(normalize_version_string(&complex), expected_complex);
         }
 
@@ -496,12 +496,7 @@ mod tests {
             let darwin_features = DarwinReplFeatures { is_flake };
             let darwin_result = darwin_features.required_features();
 
-            if !is_flake {
-                // Property: Non-flake repls should never require features
-                prop_assert!(os_result.is_empty());
-                prop_assert!(home_result.is_empty());
-                prop_assert!(darwin_result.is_empty());
-            } else {
+            if is_flake {
                 // Property: All flake repls should have consistent base features
                 // (when features are required, they should include nix-command and flakes)
                 for result in [&os_result, &home_result, &darwin_result] {
@@ -527,6 +522,11 @@ mod tests {
                         prop_assert!(os_result.contains(&"repl-flake"));
                     }
                 }
+            } else {
+                // Property: Non-flake repls should never require features
+                prop_assert!(os_result.is_empty());
+                prop_assert!(home_result.is_empty());
+                prop_assert!(darwin_result.is_empty());
             }
         }
 
@@ -558,7 +558,7 @@ mod tests {
 
                 // Property: No duplicate features
                 let mut sorted = result1.clone();
-                sorted.sort();
+                sorted.sort_unstable();
                 sorted.dedup();
                 prop_assert_eq!(result1.len(), sorted.len());
             }
