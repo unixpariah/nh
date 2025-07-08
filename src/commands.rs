@@ -704,10 +704,30 @@ mod tests {
         let sudo_exec = cmd.build_sudo_cmd();
         let cmdline = sudo_exec.to_cmdline_lossy();
 
-        // Should contain preserve-env flag with variables
-        assert!(cmdline.contains("--preserve-env="));
-        assert!(cmdline.contains("VAR1"));
-        assert!(cmdline.contains("VAR2"));
+        #[cfg(target_os = "macos")]
+        {
+            let has_preserve_env = subprocess::Exec::cmd("sudo")
+                .args(&["--help"])
+                .stderr(subprocess::Redirection::None)
+                .stdout(subprocess::Redirection::Pipe)
+                .capture()
+                .map(|output| output.stdout_str().contains("--preserve-env"))
+                .unwrap_or(false);
+
+            if has_preserve_env {
+                assert!(cmdline.contains("--preserve-env="));
+                assert!(cmdline.contains("VAR1"));
+                assert!(cmdline.contains("VAR2"));
+            } else {
+                assert!(!cmdline.contains("--preserve-env="));
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert!(cmdline.contains("--preserve-env="));
+            assert!(cmdline.contains("VAR1"));
+            assert!(cmdline.contains("VAR2"));
+        }
     }
 
     #[test]
