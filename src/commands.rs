@@ -760,6 +760,41 @@ mod tests {
     }
 
     #[test]
+    #[serial]
+    fn test_build_sudo_cmd_env_added_once() {
+        let mut cmd = Command::new("test");
+        cmd.env_vars.insert(
+            "TEST_VAR1".to_string(),
+            EnvAction::Set("value1".to_string()),
+        );
+        cmd.env_vars.insert(
+            "TEST_VAR2".to_string(),
+            EnvAction::Set("value2".to_string()),
+        );
+        cmd.env_vars
+            .insert("PRESERVE_VAR".to_string(), EnvAction::Preserve);
+
+        let sudo_exec = cmd.build_sudo_cmd();
+        let cmdline = sudo_exec.to_cmdline_lossy();
+
+        // Count occurrences of "env" in the command line
+        let env_count = cmdline.matches(" env ").count()
+            + if cmdline.starts_with("env ") { 1 } else { 0 }
+            + if cmdline.ends_with(" env") { 1 } else { 0 };
+
+        // Should contain env command exactly once when there are explicit environment variables
+        assert_eq!(
+            env_count, 1,
+            "env command should appear exactly once in: {}",
+            cmdline
+        );
+
+        // Should contain our explicit environment variables
+        assert!(cmdline.contains("TEST_VAR1=value1"));
+        assert!(cmdline.contains("TEST_VAR2=value2"));
+    }
+
+    #[test]
     fn test_build_new() {
         let installable = Installable::Flake {
             reference: "github:user/repo".to_string(),
