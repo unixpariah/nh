@@ -9,9 +9,9 @@ use tracing::{debug, info, warn};
 use crate::commands;
 use crate::commands::Command;
 use crate::installable::Installable;
-use crate::interface::{self, HomeRebuildArgs, HomeReplArgs, HomeSubcommand};
+use crate::interface::{self, DiffType, HomeRebuildArgs, HomeReplArgs, HomeSubcommand};
 use crate::update::update;
-use crate::util::get_hostname;
+use crate::util::{get_hostname, print_dix_diff};
 
 impl interface::HomeArgs {
     pub fn run(self) -> Result<()> {
@@ -120,19 +120,18 @@ impl HomeRebuildArgs {
             };
 
         // Take a strong reference to ensure the TempDir isn't dropped
-        // This prevents early dropping of the tempdir, which causes nvd diff to fail
+        // This prevents early dropping of the tempdir, which causes dix to fail
         #[allow(unused_variables)]
         let keep_alive = target_profile.get_path().to_owned();
 
         // just do nothing for None case (fresh installs)
         if let Some(generation) = prev_generation {
-            Command::new("nvd")
-                .arg("diff")
-                .arg(generation)
-                .arg(target_profile.get_path())
-                .message("Comparing changes")
-                .show_output(true)
-                .run()?;
+            match self.common.diff {
+                DiffType::Never => {}
+                _ => {
+                    let _ = print_dix_diff(&generation, target_profile.get_path());
+                }
+            }
         }
 
         if self.common.dry || matches!(variant, Build) {

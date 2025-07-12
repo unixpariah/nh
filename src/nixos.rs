@@ -12,11 +12,11 @@ use crate::generations;
 use crate::installable::Installable;
 use crate::interface::OsSubcommand::{self};
 use crate::interface::{
-    self, OsBuildVmArgs, OsGenerationsArgs, OsRebuildArgs, OsReplArgs, OsRollbackArgs,
+    self, DiffType, OsBuildVmArgs, OsGenerationsArgs, OsRebuildArgs, OsReplArgs, OsRollbackArgs,
 };
 use crate::update::update;
 use crate::util::ensure_ssh_key_login;
-use crate::util::get_hostname;
+use crate::util::{get_hostname, print_dix_diff};
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
 const CURRENT_PROFILE: &str = "/run/current-system";
@@ -199,24 +199,26 @@ impl OsRebuildArgs {
             ));
         }
 
-        if self.build_host.is_none()
-            && self.target_host.is_none()
-            && system_hostname.is_none_or(|h| h == target_hostname)
-        {
+        if system_hostname.is_none_or(|h| h == target_hostname) {
             debug!(
                 "Comparing with target profile: {}",
                 target_profile.display()
             );
 
-            Command::new("nvd")
-                .arg("diff")
-                .arg(CURRENT_PROFILE)
-                .arg(&target_profile)
-                .message("Comparing changes")
-                .show_output(true)
-                .run()?;
+            // Compare changes between current and target generation
+            match self.common.diff {
+                DiffType::Never => {}
+                DiffType::Auto => {
+                    if self.target_host.is_none() && self.build_host.is_none() {
+                        let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
+                    }
+                }
+                DiffType::Always => {
+                    let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
+                }
+            }
         } else {
-            debug!("Not running nvd as the target hostname is different from the system hostname.");
+            debug!("Not running dix as the target hostname is different from the system hostname.");
         }
 
         if self.common.dry || matches!(variant, Build | BuildVm) {
@@ -378,13 +380,12 @@ impl OsRollbackArgs {
         debug!("target_specialisation: {target_specialisation:?}");
 
         // Compare changes between current and target generation
-        Command::new("nvd")
-            .arg("diff")
-            .arg(CURRENT_PROFILE)
-            .arg(&generation_link)
-            .message("Comparing changes")
-            .show_output(true)
-            .run()?;
+        match self.diff {
+            DiffType::Never => {}
+            _ => {
+                let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &generation_link);
+            }
+        }
 
         if self.dry {
             info!(

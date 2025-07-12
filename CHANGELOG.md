@@ -28,6 +28,9 @@ functionality, under the "Removed" section.
 - `nh darwin switch` now shows the output from the `darwin-rebuild` activation.
   This allows you to see more details about the activation from `nix-darwin`, as
   well as `Home Manager`.
+- `nvd` is replaced by `dix`, resulting in saner and faster diffing.
+- Nh now supports a new `--diff` flag, which takes one of `auto` `always`
+  `never` and toggles displaying the package diff after a build.
 
 ### Fixed
 
