@@ -73,8 +73,8 @@ pub fn check_nix_version() -> Result<()> {
     // without the understanding of stable/unstable branches. What do we check
     // for, whether upstream made an announcement? No thanks.
     // TODO: Set up a CI to automatically update those in the future.
-    const MIN_LIX_VERSION: &str = "2.91.1";
-    const MIN_NIX_VERSION: &str = "2.24.14";
+    const MIN_LIX_VERSION: &str = "2.91.3";
+    const MIN_NIX_VERSION: &str = "2.28.4";
 
     // Minimum supported versions. Those should generally correspond to
     // latest package versions in the stable branch.
