@@ -49,7 +49,7 @@ impl interface::CleanMode {
             }
             Self::All(args) => {
                 if !uid.is_root() {
-                    crate::self_elevate();
+                    crate::util::self_elevate();
                 }
                 profiles.extend(profiles_in_dir("/nix/var/nix/profiles"));
                 for read_dir in PathBuf::from("/nix/var/nix/profiles/per-user").read_dir()? {

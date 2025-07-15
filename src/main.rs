@@ -15,7 +15,6 @@ mod update;
 mod util;
 
 use color_eyre::Result;
-use tracing::debug;
 
 const NH_VERSION: &str = env!("CARGO_PKG_VERSION");
 const NH_REV: Option<&str> = option_env!("NH_REV");
@@ -41,14 +40,4 @@ fn main() -> Result<()> {
     }
 
     args.command.run()
-}
-
-/// Self-elevates the current process by re-executing it with sudo
-fn self_elevate() -> ! {
-    use std::os::unix::process::CommandExt;
-
-    let mut cmd = crate::commands::Command::self_elevate_cmd();
-    debug!("{:?}", cmd);
-    let err = cmd.exec();
-    panic!("{}", err);
 }
