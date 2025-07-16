@@ -152,13 +152,18 @@ impl Command {
             })
             .collect::<Vec<_>>();
 
-        for (key, action) in &env_vars {
-            match action {
-                EnvAction::Set(value) => debug!("Preserved env: {key}={value}"),
-                EnvAction::Preserve => debug!("Preserved env: {key}=<preserved>"),
-                EnvAction::Remove => debug!("Preserved env: {key}=<removed>"),
-            }
-        }
+        debug!(
+            "Preserved envs: {}",
+            env_vars
+                .iter()
+                .map(|(key, action)| match action {
+                    EnvAction::Set(value) => format!("{key}={value}"),
+                    EnvAction::Preserve => format!("{key}=<preserved>"),
+                    EnvAction::Remove => format!("{key}=<removed>"),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
 
         for (key, action) in env_vars {
             self.env_vars.insert(key, action);
