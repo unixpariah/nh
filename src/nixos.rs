@@ -282,7 +282,7 @@ impl OsRebuildArgs {
                 .elevate(elevate)
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
                 .run()
-                .map_err(|e| eyre!("Activation (test) failed: {}", e))?;
+                .wrap_err("Activation (test) failed")?;
         }
 
         if let Boot | Switch = variant {
@@ -297,7 +297,7 @@ impl OsRebuildArgs {
                 .arg(&canonical_out_path)
                 .ssh(self.target_host.clone())
                 .run()
-                .map_err(|e| eyre!("Failed to set system profile: {}", e))?;
+                .wrap_err("Failed to set system profile")?;
 
             let switch_to_configuration = out_path
                 .get_path()
@@ -328,7 +328,7 @@ impl OsRebuildArgs {
                 .message("Adding configuration to bootloader")
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
                 .run()
-                .map_err(|e| eyre!("Bootloader activation failed: {}", e))?;
+                .wrap_err("Bootloader activation failed")?;
         }
 
         // Make sure out_path is not accidentally dropped
