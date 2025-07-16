@@ -145,12 +145,20 @@ impl Command {
 
         let env_vars = std::env::vars()
             .filter_map(|(key, value)| match key.as_str() {
-                "HOME" | "USER" => Some((key, EnvAction::Set(value))),
+                "USER" => Some((key, EnvAction::Set(value))),
                 k if ENV.contains(&k) => Some((key, EnvAction::Preserve)),
                 k if k.starts_with("NH_") => Some((key, EnvAction::Set(value))),
                 _ => None,
             })
             .collect::<Vec<_>>();
+
+        // Only propagate HOME for non-elevated commands
+        if !self.elevate {
+            if let Ok(home) = std::env::var("HOME") {
+                self.env_vars
+                    .insert("HOME".to_string(), EnvAction::Set(home));
+            }
+        }
 
         debug!(
             "Preserved envs: {}",
