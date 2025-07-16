@@ -166,7 +166,7 @@ impl OsRebuildArgs {
             .message(message)
             .nom(!self.common.no_nom)
             .run()
-            .map_err(|e| eyre!("Failed to build configuration: {}", e))?;
+            .wrap_err("Failed to build configuration")?;
 
         let current_specialisation = std::fs::read_to_string(SPEC_LOCATION).ok();
 
@@ -426,7 +426,7 @@ impl OsRollbackArgs {
             .elevate(elevate)
             .message("Setting system profile")
             .run()
-            .map_err(|e| eyre!("Failed to set system profile during rollback: {}", e))?;
+            .wrap_err("Failed to set system profile during rollback")?;
 
         // Determine the correct profile to use with specialisations
         let final_profile = match &target_specialisation {
@@ -486,7 +486,7 @@ impl OsRollbackArgs {
                         .elevate(elevate)
                         .message("Rolling back system profile")
                         .run()
-                        .map_err(|err| eyre!("Failed to restore previous system profile after failed activation: {}", err))?;
+                        .wrap_err("NixOS: Failed to restore previous system profile after failed activation")?;
                 }
 
                 return Err(eyre!("Activation (switch) failed: {}", e))
@@ -594,7 +594,7 @@ fn get_current_generation_number() -> Result<u64> {
     current_gen
         .number
         .parse::<u64>()
-        .map_err(|_| eyre!("Invalid generation number"))
+        .wrap_err("Invalid generation number")
 }
 
 pub fn get_final_attr(build_vm: bool, with_bootloader: bool) -> String {

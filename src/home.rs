@@ -235,13 +235,10 @@ where
                         .to_args(),
                     )
                     .run_capture()
-                    .map_err(|e| {
-                        color_eyre::eyre::eyre!(
-                            "Failed running nix eval to check for explicit configuration '{}': {}",
-                            config_name,
-                            e
-                        )
-                    })?;
+                    .wrap_err(format!(
+                        "Failed running nix eval to check for explicit configuration '{}'",
+                        config_name
+                    ))?;
 
                 if check_res.map(|s| s.trim().to_owned()).as_deref() == Some("true") {
                     debug!("Using explicit configuration from flag: {}", config_name);
@@ -289,13 +286,10 @@ where
                             .to_args(),
                         )
                         .run_capture()
-                        .map_err(|e| {
-                            color_eyre::eyre::eyre!(
-                                "Failed running nix eval to check for automatic configuration '{}': {}",
-                                attr_name,
-                                e
-                            )
-                        })?;
+                        .wrap_err(format!(
+                            "Failed running nix eval to check for automatic configuration '{}'",
+                            attr_name
+                        ))?;
 
                     let current_try_attr = {
                         let mut attr_path = attribute.clone();
