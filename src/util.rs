@@ -11,6 +11,7 @@ use std::{
 use color_eyre::Result;
 use color_eyre::eyre;
 use tempfile::TempDir;
+use tracing::debug;
 
 use crate::commands::Command;
 
@@ -214,6 +215,27 @@ pub fn get_missing_experimental_features(required_features: &[&str]) -> Result<V
         .collect();
 
     Ok(missing_features)
+}
+
+/// Self-elevates the current process by re-executing it with sudo
+///
+/// # Panics
+///
+/// Panics if the process re-execution with elevated privileges fails.
+///
+/// # Examples
+///
+/// ```rust
+/// // Elevate the current process to run as root
+/// let elevate: fn() -> ! = nh::util::self_elevate;
+/// ```
+pub fn self_elevate() -> ! {
+    use std::os::unix::process::CommandExt;
+
+    let mut cmd = crate::commands::Command::self_elevate_cmd();
+    debug!("{:?}", cmd);
+    let err = cmd.exec();
+    panic!("{}", err);
 }
 
 pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()> {

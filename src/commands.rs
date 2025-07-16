@@ -691,9 +691,10 @@ mod tests {
         let cmd = Command::new("test");
         let sudo_exec = cmd.build_sudo_cmd();
 
-        // Should start with sudo command
+        // Platform-agnostic: 'sudo' may not be the first token if env vars are injected (e.g., NH_SUDO_ASKPASS).
+        // Accept any command line where 'sudo' is present as a token.
         let cmdline = sudo_exec.to_cmdline_lossy();
-        assert!(cmdline.starts_with("sudo"));
+        assert!(cmdline.split_whitespace().any(|tok| tok == "sudo"));
     }
 
     #[test]

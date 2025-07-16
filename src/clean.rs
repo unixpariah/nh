@@ -49,7 +49,7 @@ impl interface::CleanMode {
             }
             Self::All(args) => {
                 if !uid.is_root() {
-                    crate::self_elevate();
+                    crate::util::self_elevate();
                 }
 
                 let paths_to_check = [
