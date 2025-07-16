@@ -159,6 +159,7 @@ impl HomeRebuildArgs {
         }
 
         Command::new(target_profile.get_path().join("activate"))
+            .with_required_env()
             .message("Activating configuration")
             .run()
             .wrap_err("Activation failed")?;
@@ -223,6 +224,7 @@ where
                 // Verify the provided configuration exists
                 let func = format!(r#" x: x ? "{config_name}" "#);
                 let check_res = commands::Command::new("nix")
+                    .with_required_env()
                     .arg("eval")
                     .args(&extra_args)
                     .arg("--apply")
@@ -236,8 +238,7 @@ where
                     )
                     .run_capture()
                     .wrap_err(format!(
-                        "Failed running nix eval to check for explicit configuration '{}'",
-                        config_name
+                        "Failed running nix eval to check for explicit configuration '{config_name}'"
                     ))?;
 
                 if check_res.map(|s| s.trim().to_owned()).as_deref() == Some("true") {
@@ -274,6 +275,7 @@ where
                 for attr_name in [format!("{username}@{hostname}"), username] {
                     let func = format!(r#" x: x ? "{attr_name}" "#);
                     let check_res = commands::Command::new("nix")
+                        .with_required_env()
                         .arg("eval")
                         .args(&extra_args)
                         .arg("--apply")
@@ -287,8 +289,7 @@ where
                         )
                         .run_capture()
                         .wrap_err(format!(
-                            "Failed running nix eval to check for automatic configuration '{}'",
-                            attr_name
+                            "Failed running nix eval to check for automatic configuration '{attr_name}'"
                         ))?;
 
                     let current_try_attr = {
@@ -383,6 +384,7 @@ impl HomeReplArgs {
         )?;
 
         Command::new("nix")
+            .with_required_env()
             .arg("repl")
             .args(toplevel.to_args())
             .run()?;

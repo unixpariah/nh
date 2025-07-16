@@ -300,6 +300,7 @@ fn test_parse_attribute() {
 }
 
 impl Installable {
+    #[must_use]
     pub fn to_args(&self) -> Vec<String> {
         let mut res = Vec::new();
         match self {
@@ -383,6 +384,7 @@ fn test_join_attribute() {
 }
 
 impl Installable {
+    #[must_use]
     pub const fn str_kind(&self) -> &str {
         match self {
             Self::Flake { .. } => "flake",

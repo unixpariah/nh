@@ -32,6 +32,7 @@ pub struct GenerationInfo {
     pub current: bool,
 }
 
+#[must_use]
 pub fn from_dir(generation_dir: &Path) -> Option<u64> {
     generation_dir
         .file_name()

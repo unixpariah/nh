@@ -145,6 +145,7 @@ impl DarwinRebuildArgs {
                 .arg(out_path.get_path())
                 .elevate(true)
                 .dry(self.common.dry)
+                .with_required_env()
                 .run()
                 .wrap_err("Failed to set Darwin system profile")?;
 
@@ -166,6 +167,7 @@ impl DarwinRebuildArgs {
                 .elevate(needs_elevation)
                 .dry(self.common.dry)
                 .show_output(true)
+                .with_required_env()
                 .run()
                 .wrap_err("Darwin activation failed")?;
         }
@@ -222,6 +224,7 @@ impl DarwinReplArgs {
         Command::new("nix")
             .arg("repl")
             .args(target_installable.to_args())
+            .with_required_env()
             .run()?;
 
         Ok(())

@@ -71,7 +71,7 @@ impl interface::CleanMode {
                                 path.read_dir()
                                     .map(|read_dir| {
                                         read_dir
-                                            .filter_map(|entry| entry.ok())
+                                            .filter_map(std::result::Result::ok)
                                             .map(|entry| entry.path())
                                             .filter(|path| path.is_dir())
                                             .flat_map(profiles_in_dir)
@@ -294,6 +294,7 @@ impl interface::CleanMode {
                 .dry(args.dry)
                 .message("Performing garbage collection on the nix store")
                 .show_output(true)
+                .with_required_env()
                 .run()?;
         }
 

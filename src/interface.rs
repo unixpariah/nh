@@ -58,6 +58,7 @@ pub enum NHCommand {
 }
 
 impl NHCommand {
+    #[must_use]
     pub fn get_feature_requirements(&self) -> Box<dyn FeatureRequirements> {
         match self {
             Self::Os(args) => args.get_feature_requirements(),
@@ -111,6 +112,7 @@ pub struct OsArgs {
 }
 
 impl OsArgs {
+    #[must_use]
     pub fn get_feature_requirements(&self) -> Box<dyn FeatureRequirements> {
         match &self.subcommand {
             OsSubcommand::Repl(args) => {
@@ -214,6 +216,7 @@ pub struct OsRebuildArgs {
 }
 
 impl OsRebuildArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_OS_FLAKE").is_ok_and(|v| !v.is_empty()) {
@@ -305,6 +308,7 @@ pub struct OsReplArgs {
 }
 
 impl OsReplArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_OS_FLAKE").is_ok() {
@@ -423,6 +427,7 @@ pub struct HomeArgs {
 }
 
 impl HomeArgs {
+    #[must_use]
     pub fn get_feature_requirements(&self) -> Box<dyn FeatureRequirements> {
         match &self.subcommand {
             HomeSubcommand::Repl(args) => {
@@ -484,6 +489,7 @@ pub struct HomeRebuildArgs {
 }
 
 impl HomeRebuildArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_HOME_FLAKE").is_ok_and(|v| !v.is_empty()) {
@@ -512,6 +518,7 @@ pub struct HomeReplArgs {
 }
 
 impl HomeReplArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_HOME_FLAKE").is_ok_and(|v| !v.is_empty()) {
@@ -540,6 +547,7 @@ pub struct DarwinArgs {
 }
 
 impl DarwinArgs {
+    #[must_use]
     pub fn get_feature_requirements(&self) -> Box<dyn FeatureRequirements> {
         match &self.subcommand {
             DarwinSubcommand::Repl(args) => {
@@ -585,6 +593,7 @@ pub struct DarwinRebuildArgs {
 }
 
 impl DarwinRebuildArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_DARWIN_FLAKE").is_ok_and(|v| !v.is_empty()) {
@@ -607,6 +616,7 @@ pub struct DarwinReplArgs {
 }
 
 impl DarwinReplArgs {
+    #[must_use]
     pub fn uses_flakes(&self) -> bool {
         // Check environment variables first
         if env::var("NH_DARWIN_FLAKE").is_ok_and(|v| !v.is_empty()) {

@@ -247,6 +247,7 @@ impl OsRebuildArgs {
                     target_profile.to_str().unwrap(),
                 ])
                 .message("Copying configuration to target")
+                .with_required_env()
                 .run()?;
         }
 
@@ -281,6 +282,7 @@ impl OsRebuildArgs {
                 .message("Activating configuration")
                 .elevate(elevate)
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
+                .with_required_env()
                 .run()
                 .wrap_err("Activation (test) failed")?;
         }
@@ -296,6 +298,7 @@ impl OsRebuildArgs {
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
                 .arg(&canonical_out_path)
                 .ssh(self.target_host.clone())
+                .with_required_env()
                 .run()
                 .wrap_err("Failed to set system profile")?;
 
@@ -327,6 +330,7 @@ impl OsRebuildArgs {
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
+                .with_required_env()
                 .run()
                 .wrap_err("Bootloader activation failed")?;
         }
@@ -425,6 +429,7 @@ impl OsRollbackArgs {
             .arg(SYSTEM_PROFILE)
             .elevate(elevate)
             .message("Setting system profile")
+            .with_required_env()
             .run()
             .wrap_err("Failed to set system profile during rollback")?;
 
@@ -465,6 +470,7 @@ impl OsRollbackArgs {
             .arg("switch")
             .elevate(elevate)
             .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
+            .with_required_env()
             .run()
         {
             Ok(()) => {
@@ -485,6 +491,7 @@ impl OsRollbackArgs {
                         .arg(SYSTEM_PROFILE)
                         .elevate(elevate)
                         .message("Rolling back system profile")
+                        .with_required_env()
                         .run()
                         .wrap_err("NixOS: Failed to restore previous system profile after failed activation")?;
                 }
@@ -597,6 +604,7 @@ fn get_current_generation_number() -> Result<u64> {
         .wrap_err("Invalid generation number")
 }
 
+#[must_use]
 pub fn get_final_attr(build_vm: bool, with_bootloader: bool) -> String {
     let attr = if build_vm && with_bootloader {
         "vmWithBootLoader"
@@ -687,7 +695,7 @@ impl OsReplArgs {
         Command::new("nix")
             .arg("repl")
             .args(target_installable.to_args())
-            .show_output(true)
+            .with_required_env()
             .run()?;
 
         Ok(())

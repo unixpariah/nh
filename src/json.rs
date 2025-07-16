@@ -29,6 +29,7 @@ impl Display for Error {
 impl std::error::Error for Error {}
 
 impl<'v> Value<'v> {
+    #[must_use]
     pub const fn new(value: &'v serde_json::Value) -> Self {
         Self {
             inner: value,
