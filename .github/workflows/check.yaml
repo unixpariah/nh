@@ -3,10 +3,26 @@ name: "Check formating & lints"
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "xtask/Cargo.toml"
+      - "src/**"
+      - "xtask/src/**"
+      - ".cargo/**"
+      - ".github/workflows/check.yaml"
   push:
     branches-ignore:
-      - 'update-*'
+      - "update-*"
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "xtask/Cargo.toml"
+      - "src/**"
+      - "xtask/src/**"
+      - ".cargo/**"
+      - ".github/workflows/check.yaml"
 
 jobs:
   treewide-checks:
@@ -26,7 +42,6 @@ jobs:
           # Run cargo fmt in check mode
           cargo fmt --check
 
-
       # We run clippy with lints that help avoid overall low-quality code or what is called "code smell."
       # Stylistic lints (e.g., clippy::style and clippy::complexity) are avoided but it is a good idea to
       # follow those while working on the codebase.
@@ -34,4 +49,3 @@ jobs:
         run: |
           # Lint Changes
           cargo clippy -- -W clippy::pedantic -W clippy::correctness -W clippy::suspicious
-
