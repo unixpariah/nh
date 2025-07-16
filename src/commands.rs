@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 
 use color_eyre::{
     Result,
-    eyre::{Context, bail, eyre},
+    eyre::{Context, bail},
 };
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
@@ -61,17 +61,17 @@ impl Command {
         }
     }
 
-    pub const fn elevate(mut self, elevate: bool) -> Self {
+    pub fn elevate(mut self, elevate: bool) -> Self {
         self.elevate = elevate;
         self
     }
 
-    pub const fn dry(mut self, dry: bool) -> Self {
+    pub fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
         self
     }
 
-    pub const fn show_output(mut self, show_output: bool) -> Self {
+    pub fn show_output(mut self, show_output: bool) -> Self {
         self.show_output = show_output;
         self
     }
@@ -270,11 +270,9 @@ impl Command {
 
     pub fn run(&self) -> Result<()> {
         let cmd = if self.elevate {
-            let sudo_cmd = self.build_sudo_cmd();
-            sudo_cmd.arg(&self.command).args(&self.args)
+            self.build_sudo_cmd().arg(&self.command).args(&self.args)
         } else {
-            let cmd = Exec::cmd(&self.command).args(&self.args);
-            self.apply_env_to_exec(cmd)
+            self.apply_env_to_exec(Exec::cmd(&self.command).args(&self.args))
         };
 
         // Configure output redirection based on show_output setting
@@ -303,34 +301,28 @@ impl Command {
             .unwrap_or_else(|| "Command failed".to_string());
         let res = cmd.capture();
         if let Err(e) = res {
-            return Err(e).wrap_err(msg.clone());
+            return Err(e).wrap_err(msg);
         }
 
         let status = &res.as_ref().unwrap().exit_status;
         if !status.success() {
             let stderr = res.as_ref().map(|r| r.stderr_str()).unwrap_or_default();
             if stderr.trim().is_empty() {
-                return Err(eyre!("{} (exit status {:?})", msg, status));
-            } else {
-                return Err(eyre!(
-                    "{} (exit status {:?})\nstderr:\n{}",
-                    msg,
-                    status,
-                    stderr
-                ));
+                bail!("{} (exit status {:?})", msg, status);
             }
+            bail!("{} (exit status {:?})\nstderr:\n{}", msg, status, stderr);
         }
 
         Ok(())
     }
 
     pub fn run_capture(&self) -> Result<Option<String>> {
-        let cmd = Exec::cmd(&self.command)
-            .args(&self.args)
-            .stderr(Redirection::None)
-            .stdout(Redirection::Pipe);
-
-        let cmd = self.apply_env_to_exec(cmd);
+        let cmd = self.apply_env_to_exec(
+            Exec::cmd(&self.command)
+                .args(&self.args)
+                .stderr(Redirection::None)
+                .stdout(Redirection::Pipe),
+        );
 
         if let Some(m) = &self.message {
             info!("{}", m);
@@ -339,10 +331,9 @@ impl Command {
         debug!(?cmd);
 
         if self.dry {
-            Ok(None)
-        } else {
-            Ok(Some(cmd.capture()?.stdout_str()))
+            return Ok(None);
         }
+        Ok(Some(cmd.capture()?.stdout_str()))
     }
 }
 
