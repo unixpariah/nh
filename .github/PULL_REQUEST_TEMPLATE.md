@@ -32,8 +32,6 @@ please do make sure to include it above in your description.
   - [ ] I ran **`cargo clippy**` and fixed any new linter warnings.
 - If new changes are particularly complex:
   - [ ] My code includes comments in particularly complex areas
-  - [ ] I have added a section in the manual
-  - [ ] _(For breaking changes)_ I have included a migration guide
 - Tested on platform(s)
   - [ ] `x86_64-linux`
   - [ ] `aarch64-linux`
