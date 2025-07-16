@@ -31,6 +31,8 @@ functionality, under the "Removed" section.
 - `nvd` is replaced by `dix`, resulting in saner and faster diffing.
 - Nh now supports a new `--diff` flag, which takes one of `auto` `always`
   `never` and toggles displaying the package diff after a build.
+- Manpages have been added to nh, and will be available as `man 1 nh` if the
+  package vendor provides them.
 
 ### Fixed
 
