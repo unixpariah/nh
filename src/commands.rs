@@ -61,21 +61,25 @@ impl Command {
         }
     }
 
+    #[must_use]
     pub fn elevate(mut self, elevate: bool) -> Self {
         self.elevate = elevate;
         self
     }
 
+    #[must_use]
     pub fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
         self
     }
 
+    #[must_use]
     pub fn show_output(mut self, show_output: bool) -> Self {
         self.show_output = show_output;
         self
     }
 
+    #[must_use]
     pub fn ssh(mut self, ssh: Option<String>) -> Self {
         self.ssh = ssh;
         self
@@ -115,40 +119,51 @@ impl Command {
         self
     }
 
-    /// Configure environment for Nix operations with proper HOME handling
-    pub fn with_nix_env(mut self) -> Self {
-        // Preserve original user's HOME and USER
-        if let Ok(home) = std::env::var("HOME") {
-            self.env_vars
-                .insert("HOME".to_string(), EnvAction::Set(home));
-        }
-        if let Ok(user) = std::env::var("USER") {
-            self.env_vars
-                .insert("USER".to_string(), EnvAction::Set(user));
-        }
-
-        // Preserve Nix-related environment variables
-        // TODO: is this everything we need? Previously we only preserved *some* variables
-        // and nh continued to work, but any missing vars might break functionality completely
-        // unexpectedly.
-        self.preserve_envs([
+    /// Configure environment for Nix and NH operations
+    #[must_use]
+    pub fn with_required_env(mut self) -> Self {
+        const ENV: &[&str] = &[
+            // This is not a part of Nix's environment, but it might be necessary.
+            // nixos-rebuild preserves it, so we do too.
+            "LOCALE_ARCHIVE",
+            // PATH needs to be preserved so that NH can invoke CLI utilities.
             "PATH",
+            // Make sure NIX_SSHOPTS applies to nix commands that invoke ssh, such as `nix copy`
+            "NIX_SSHOPTS",
+            // This is relevant for Home-Manager systems
+            "HOME_MANAGER_BACKUP_EXT",
+            // Preserve other Nix-related environment variables
+            // TODO: is this everything we need? Previously we only preserved *some* variables
+            // and nh continued to work, but any missing vars might break functionality completely
+            // unexpectedly. This list could change at any moment. This better be enough. Ugh.
             "NIX_CONFIG",
             "NIX_PATH",
             "NIX_REMOTE",
             "NIX_SSL_CERT_FILE",
             "NIX_USER_CONF_FILES",
-        ])
-    }
+        ];
 
-    /// Configure environment for NH operations
-    pub fn with_nh_env(mut self) -> Self {
-        // Preserve all NH_* environment variables
-        for (key, value) in std::env::vars() {
-            if key.starts_with("NH_") {
-                self.env_vars.insert(key, EnvAction::Set(value));
+        let env_vars = std::env::vars()
+            .filter_map(|(key, value)| match key.as_str() {
+                "HOME" | "USER" => Some((key, EnvAction::Set(value))),
+                k if ENV.contains(&k) => Some((key, EnvAction::Preserve)),
+                k if k.starts_with("NH_") => Some((key, EnvAction::Set(value))),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        for (key, action) in &env_vars {
+            match action {
+                EnvAction::Set(value) => debug!("Preserved env: {key}={value}"),
+                EnvAction::Preserve => debug!("Preserved env: {key}=<preserved>"),
+                EnvAction::Remove => debug!("Preserved env: {key}=<removed>"),
             }
         }
+
+        for (key, action) in env_vars {
+            self.env_vars.insert(key, action);
+        }
+
         self
     }
 
@@ -227,7 +242,7 @@ impl Command {
         if !explicit_env_vars.is_empty() {
             cmd = cmd.arg("env");
             for (key, value) in explicit_env_vars {
-                cmd = cmd.arg(format!("{}={}", key, value));
+                cmd = cmd.arg(format!("{key}={value}"));
             }
         }
 
@@ -235,15 +250,13 @@ impl Command {
     }
 
     /// Create a sudo command for self-elevation with proper environment handling
+    #[must_use]
     pub fn self_elevate_cmd() -> std::process::Command {
         // Get the current executable path
         let current_exe = std::env::current_exe().expect("Failed to get current executable path");
 
         // Self-elevation with proper environment handling
-        let cmd_builder = Self::new(&current_exe)
-            .elevate(true)
-            .with_nix_env()
-            .with_nh_env();
+        let cmd_builder = Self::new(&current_exe).elevate(true).with_required_env();
 
         let sudo_exec = cmd_builder.build_sudo_cmd();
 
@@ -256,9 +269,7 @@ impl Command {
         let cmdline = final_exec.to_cmdline_lossy();
         let parts: Vec<&str> = cmdline.split_whitespace().collect();
 
-        if parts.is_empty() {
-            panic!("Failed to build sudo command");
-        }
+        assert!(!parts.is_empty(), "Failed to build sudo command");
 
         let mut std_cmd = std::process::Command::new(parts[0]);
         if parts.len() > 1 {
@@ -306,7 +317,10 @@ impl Command {
 
         let status = &res.as_ref().unwrap().exit_status;
         if !status.success() {
-            let stderr = res.as_ref().map(|r| r.stderr_str()).unwrap_or_default();
+            let stderr = res
+                .as_ref()
+                .map(subprocess::CaptureData::stderr_str)
+                .unwrap_or_default();
             if stderr.trim().is_empty() {
                 bail!("{} (exit status {:?})", msg, status);
             }
@@ -347,6 +361,7 @@ pub struct Build {
 }
 
 impl Build {
+    #[must_use]
     pub const fn new(installable: Installable) -> Self {
         Self {
             message: None,
@@ -367,11 +382,13 @@ impl Build {
         self
     }
 
+    #[must_use]
     pub const fn nom(mut self, yes: bool) -> Self {
         self.nom = yes;
         self
     }
 
+    #[must_use]
     pub fn builder(mut self, builder: Option<String>) -> Self {
         self.builder = builder;
         self
@@ -555,11 +572,11 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_with_nix_env() {
+    fn test_with_required_env_home_user() {
         let _home_guard = EnvGuard::new("HOME", "/test/home");
         let _user_guard = EnvGuard::new("USER", "testuser");
 
-        let cmd = Command::new("test").with_nix_env();
+        let cmd = Command::new("test").with_required_env();
 
         // Should preserve HOME and USER as Set actions
         assert!(
@@ -567,67 +584,65 @@ mod tests {
         );
         assert!(matches!(cmd.env_vars.get("USER"), Some(EnvAction::Set(val)) if val == "testuser"));
 
-        // Should preserve Nix-related variables
-        assert!(matches!(
-            cmd.env_vars.get("PATH"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_CONFIG"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_PATH"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_REMOTE"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_SSL_CERT_FILE"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_USER_CONF_FILES"),
-            Some(EnvAction::Preserve)
-        ));
+        // Should preserve all Nix-related variables if present
+        for key in [
+            "PATH",
+            "NIX_CONFIG",
+            "NIX_PATH",
+            "NIX_REMOTE",
+            "NIX_SSHOPTS",
+            "NIX_SSL_CERT_FILE",
+            "NIX_USER_CONF_FILES",
+            "LOCALE_ARCHIVE",
+            "HOME_MANAGER_BACKUP_EXT",
+        ] {
+            if cmd.env_vars.contains_key(key) {
+                assert!(matches!(cmd.env_vars.get(key), Some(EnvAction::Preserve)));
+            }
+        }
     }
 
     #[test]
     #[serial]
-    fn test_with_nix_env_missing_home_user() {
+    fn test_with_required_env_missing_home_user() {
         // Test behavior when HOME/USER are not set
         unsafe {
             env::remove_var("HOME");
             env::remove_var("USER");
         }
 
-        let cmd = Command::new("test").with_nix_env();
+        let cmd = Command::new("test").with_required_env();
 
         // Should not have HOME or USER in env_vars if they're not set
         assert!(!cmd.env_vars.contains_key("HOME"));
         assert!(!cmd.env_vars.contains_key("USER"));
 
-        // Should still preserve Nix-related variables
-        assert!(matches!(
-            cmd.env_vars.get("PATH"),
-            Some(EnvAction::Preserve)
-        ));
-        assert!(matches!(
-            cmd.env_vars.get("NIX_CONFIG"),
-            Some(EnvAction::Preserve)
-        ));
+        // Should preserve Nix-related variables if present
+        for key in [
+            "PATH",
+            "NIX_CONFIG",
+            "NIX_PATH",
+            "NIX_REMOTE",
+            "NIX_SSHOPTS",
+            "NIX_SSL_CERT_FILE",
+            "NIX_USER_CONF_FILES",
+            "LOCALE_ARCHIVE",
+            "HOME_MANAGER_BACKUP_EXT",
+        ] {
+            if let Some(action) = cmd.env_vars.get(key) {
+                assert!(matches!(action, EnvAction::Preserve));
+            }
+        }
     }
 
     #[test]
     #[serial]
-    fn test_with_nh_env() {
+    fn test_with_required_env_nh_vars() {
         let _guard1 = EnvGuard::new("NH_TEST_VAR", "test_value");
         let _guard2 = EnvGuard::new("NH_ANOTHER_VAR", "another_value");
         let _guard3 = EnvGuard::new("NOT_NH_VAR", "should_not_be_included");
 
-        let cmd = Command::new("test").with_nh_env();
+        let cmd = Command::new("test").with_required_env();
 
         // Should include NH_* variables as Set actions
         assert!(
@@ -648,8 +663,7 @@ mod tests {
         let _nh_guard = EnvGuard::new("NH_TEST", "nh_value");
 
         let cmd = Command::new("test")
-            .with_nix_env()
-            .with_nh_env()
+            .with_required_env()
             .preserve_envs(["EXTRA_VAR"]);
 
         // Should have HOME from with_nix_env
@@ -817,8 +831,7 @@ mod tests {
         // Should contain env command exactly once when there are explicit environment variables
         assert_eq!(
             env_count, 1,
-            "env command should appear exactly once in: {}",
-            cmdline
+            "env command should appear exactly once in: {cmdline}"
         );
 
         // Should contain our explicit environment variables
@@ -915,8 +928,7 @@ mod tests {
         let cmdline = result.to_cmdline_lossy();
         assert!(
             cmdline.contains("echo"),
-            "Command line should contain 'echo': {}",
-            cmdline
+            "Command line should contain 'echo': {cmdline}"
         );
     }
 
@@ -925,7 +937,7 @@ mod tests {
         let exit_status = subprocess::ExitStatus::Exited(1);
         let error = ExitError(exit_status);
 
-        let error_string = format!("{}", error);
+        let error_string = format!("{error}");
         assert!(error_string.contains("Command exited with status"));
         assert!(error_string.contains("Exited(1)"));
     }
@@ -937,9 +949,9 @@ mod tests {
         let remove_action = EnvAction::Remove;
 
         // Test that Debug is implemented (this will compile-fail if not)
-        let _debug_set = format!("{:?}", set_action);
-        let _debug_preserve = format!("{:?}", preserve_action);
-        let _debug_remove = format!("{:?}", remove_action);
+        let _debug_set = format!("{set_action:?}");
+        let _debug_preserve = format!("{preserve_action:?}");
+        let _debug_remove = format!("{remove_action:?}");
     }
 
     #[test]
