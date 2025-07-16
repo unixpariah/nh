@@ -54,6 +54,19 @@ functionality, under the "Removed" section.
   us know if you face any new bugs.
   ([#314](https://github.com/nix-community/nh/issues/314))
 
+## 4.1.2
+
+### Changed
+
+- The environment and Nix feature checks have been made more robust, which
+  should allow false positives caused by the initial implementation
+  - Version normalization for the Nix version is now much more robust. This gets
+    rid of unexpected breakage when using, e.g., `pkgs.nixVersions.git`
+- Support for additional Nix variants have been added. This allows for us to
+  handle non-supported Nix variants gracefully, treating them as mainline Nix.
+- Version check regex in checks module is now compiled only once, instead of in
+  a loop.
+
 ## 4.1.1
 
 ### Changed
