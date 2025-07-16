@@ -85,7 +85,10 @@ impl HomeRebuildArgs {
             .extra_args(&self.extra_args)
             .message("Building Home-Manager configuration")
             .nom(!self.common.no_nom)
-            .run()?;
+            .run()
+            .map_err(|e| {
+                color_eyre::eyre::eyre!("Failed to build Home-Manager configuration: {}", e)
+            })?;
 
         let prev_generation: Option<PathBuf> = [
             PathBuf::from("/nix/var/nix/profiles/per-user")
@@ -159,7 +162,8 @@ impl HomeRebuildArgs {
 
         Command::new(target_profile.get_path().join("activate"))
             .message("Activating configuration")
-            .run()?;
+            .run()
+            .map_err(|e| color_eyre::eyre::eyre!("Activation failed: {}", e))?;
 
         // Make sure out_path is not accidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall

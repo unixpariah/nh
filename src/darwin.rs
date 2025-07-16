@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use color_eyre::eyre::{Context, bail};
+use color_eyre::eyre::{Context, bail, eyre};
 use tracing::{debug, info, warn};
 
 use crate::Result;
@@ -100,7 +100,8 @@ impl DarwinRebuildArgs {
             .extra_args(&self.extra_args)
             .message("Building Darwin configuration")
             .nom(!self.common.no_nom)
-            .run()?;
+            .run()
+            .map_err(|e| eyre!("Failed to build Darwin configuration: {}", e))?;
 
         let target_profile = out_path.get_path().to_owned();
 
@@ -144,7 +145,8 @@ impl DarwinRebuildArgs {
                 .arg(out_path.get_path())
                 .elevate(true)
                 .dry(self.common.dry)
-                .run()?;
+                .run()
+                .map_err(|e| eyre!("Failed to set Darwin system profile: {}", e))?;
 
             let darwin_rebuild = out_path.get_path().join("sw/bin/darwin-rebuild");
             let activate_user = out_path.get_path().join("activate-user");
@@ -164,7 +166,8 @@ impl DarwinRebuildArgs {
                 .elevate(needs_elevation)
                 .dry(self.common.dry)
                 .show_output(true)
-                .run()?;
+                .run()
+                .map_err(|e| eyre!("Darwin activation failed: {}", e))?;
         }
 
         // Make sure out_path is not accidentally dropped
