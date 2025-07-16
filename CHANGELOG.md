@@ -31,6 +31,9 @@ functionality, under the "Removed" section.
 - `nvd` is replaced by `dix`, resulting in saner and faster diffing.
 - Nh now supports a new `--diff` flag, which takes one of `auto` `always`
   `never` and toggles displaying the package diff after a build.
+- `nh clean` will now skip directories that are checked and don't exist. Instead
+  of throwing an error, it will print a warning about which directories were
+  skipped.
 
 ### Fixed
 
