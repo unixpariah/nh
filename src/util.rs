@@ -238,6 +238,20 @@ pub fn self_elevate() -> ! {
     panic!("{}", err);
 }
 
+/// Prints the difference between two generations in terms of paths and closure sizes.
+///
+/// # Arguments
+///
+/// * `old_generation` - A reference to the path of the old generation.
+/// * `new_generation` - A reference to the path of the new generation.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the operation completed successfully, or an error wrapped in `eyre::Result` if something went wrong.
+///
+/// # Errors
+///
+/// Returns an error if the closure size thread panics or if writing size differences fails.
 pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()> {
     let mut out = WriteFmt(io::stdout());
 
@@ -250,7 +264,7 @@ pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()
 
     if let Ok((size_old, size_new)) = closure_size_handle
         .join()
-        .map_err(|_| eyre::eyre!("Stupid"))?
+        .map_err(|_| eyre::eyre!("Failed to join closure size computation thread"))?
     {
         if size_old == size_new && wrote == 0 {
             println!("No version or size changes");
