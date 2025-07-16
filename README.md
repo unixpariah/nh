@@ -4,14 +4,61 @@
   <h1>nh</h1>
   <!-- markdownlint-disable line-length -->
   <h6>Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
+  <br/>
+  <a href="#what-does-it-do">Synopsis</a><br/>
+  <a href="#features">Features</a> | <a href="#usage">Usage</a><br/>
+  <a href="#hacking">Contributing</a>
+  <br/>
 </div>
 
 ## What Does it Do?
 
-NH is a modern helper utility aims to consolidate and reimplement some of the
-commands from the NixOS ecosystem, including relevant 3rd party tools. Our goal
-is to provide a uniform interface with more features, and better ergonomics than
-existing commands.
+NH is a modern helper utility that aims to consolidate and reimplement some of
+the commands from various tools within the NixOS ecosystem. Our goal is to
+provide a cohesive, easily-understandable interface with more features, better
+ergonomics and at many times better _speed_. In addition to bringing together
+relevant 3rd party projects, NH also acts a super-convenient all-in-one utility
+that reimplements well known Nix commands.
+
+## Features
+
+- **Unified CLI**: Consistent, intuitive interface for NixOS, Home Manager, and
+  Darwin workflows.
+- **Rich Interface**: Each major function (`os`, `home`, `darwin`, `search`,
+  `clean`) exposes granular subcommands and flags for fine-tuned control.
+- **Enhanced Garbage Collection**: `nh clean` extends `nix-collect-garbage` with
+  gcroot cleanup, profile targeting, and time-based retention.
+- **Build-tree Visualization**: `nh os` and similar commands display build trees
+  for clear dependency tracking.
+- **Diff & Change Review**: Integrated, super-fast diffing of derivation changes
+  before activation or switch.
+- **Specialisation Support**: Easily select or ignore NixOS & Home-Manager
+  specialisations via flags.
+- **Generation Management**: Inspect, rollback, and manage system generations
+  with explicit targeting.
+- **Extensible & Futureproof**: Designed for rapid addition of new subcommands
+  and flags.
+
+## Usage
+
+One of the features and the core principles of NH is to provide a clean, uniform
+and intuitive CLI for its users. The `nh` command offers several subcommands,
+all with their extensive CLI flags for extensive configuration.
+
+### Global Subcommands
+
+<p align="center">
+  <img
+    alt="nh feature showcase"
+    src="./.github/screenshot.png"
+    width="800px"
+  >
+</p>
+
+- `nh search` - a super-fast package searching tool (powered by a ElasticSearch
+  client).
+- `nh clean` - a re-implementation of `nix-collect-garbage` that also collects
+  gcroots.
 
 ### Platform Specific Subcommands
 
@@ -27,31 +74,22 @@ existing commands.
     missing some features. Please visit
     [#254](https://github.com/nix-community/nh/issues/254) for a roadmap.
 
-### Global Subcommands
-
-- `nh search` - a super-fast package searching tool (powered by a ElasticSearch
-  client).
-- `nh clean` - a re-implementation of `nix-collect-garbage` that also collects
-  gcroots.
-
-<p align="center">
-  <img
-    alt="nh feature showcase"
-    src="./.github/screenshot.png"
-    width="800px"
-  >
-</p>
+See the help page for individual subcommands, or `man 1 nh` for more information
+on each subcommand.
 
 ## Installation
 
-The latest, tagged version will is available in Nixpkgs as NH stable. This
-repository provides the latest development version of NH, which you can get from
-the flake outputs.
+The latest, tagged version is available in Nixpkgs as **NH stable**. This is
+recommended for most users, as tagged releases will usually undergo more
+testing.This repository also provides the latest development version of NH,
+which you can get from the flake outputs.
 
 ```sh
 nix shell nixpkgs#nh # stable
 nix shell github:nix-community/nh # dev
 ```
+
+You can try NH today in a Nix shell today, no setup required!
 
 ### NixOS
 
@@ -70,7 +108,8 @@ set the following configuration:
 }
 ```
 
-Nh supports both Flakes and classical NixOS configurations:
+As of 4.0, NH supports both **Flakes** and classical NixOS configurations
+(channels or manual pinning.)
 
 - For flakes, the command is `nh os switch /path/to/flake`
 - For a classical configuration:
@@ -84,8 +123,8 @@ environment variables.
 
 #### Specialisations support
 
-Nh is capable of detecting which specialisation you are running, so it runs the
-proper activation script. To do so, you need to give Nh some information of the
+NH is capable of detecting which specialisation you are running, so it runs the
+proper activation script. To do so, you need to give NH some information of the
 spec that is currently running by writing its name to `/etc/specialisation`. The
 config would look like this:
 
@@ -124,8 +163,21 @@ The config would look like this:
 
 ## Hacking
 
-Contributions are always welcome. Just clone the repository and run
-`nix develop.` We also provide a `.envrc` for Direnv users.
+Contributions are always welcome. To get started, just clone the repository and
+run `nix develop`. We also provide a `.envrc` for Direnv users, who may use
+`direnv allow` to enter a shell with the necessary dependencies.
+
+### Structure
+
+NH consists of two modules. The core of NH is found in the `src` directory, and
+is separated into different modules. Some of the critical modules that you may
+want to be aware of are `nh::commands` for command interfaces, `nh::checks` for
+pre-startup checks and `nh::util` to store shared logic.
+
+The `xtask` directory contains the cargo-xtask tasks used by NH, used to
+generate manpages and possibly more in the future. Some of the
+
+### Submitting Changes
 
 Once your changes are complete, remember to run [fix.sh](./fix.sh) to apply
 general formatter and linter rules that will be expected by the CI.
@@ -142,6 +194,9 @@ NH would not be possible without that nh runs under the hood:
 - Tree of builds with [nix-output-monitor].
 - Visualization of the upgrade diff with [dix].
 - And of course, all the [crates](./Cargo.toml) we depend on.
+
+Last but not least, thank you to those who contributed to NH or simply talked
+about it on various channels. NH would not be where it is without you.
 
 ## Status
 
