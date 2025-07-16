@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 
 use color_eyre::{
     Result,
-    eyre::{Context, bail},
+    eyre::{Context, bail, eyre},
 };
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
@@ -293,11 +293,35 @@ impl Command {
 
         debug!(?cmd);
 
-        if !self.dry {
-            if let Some(m) = &self.message {
-                cmd.capture().wrap_err(m.clone())?;
+        if self.dry {
+            return Ok(());
+        }
+
+        let res = cmd.capture();
+        if let Err(e) = res {
+            let msg = self
+                .message
+                .clone()
+                .unwrap_or_else(|| "Command failed".to_string());
+            return Err(e).wrap_err(msg);
+        }
+
+        let status = &res.as_ref().unwrap().exit_status;
+        if !status.success() {
+            let msg = self
+                .message
+                .clone()
+                .unwrap_or_else(|| "Command failed".to_string());
+            let stderr = res.as_ref().map(|r| r.stderr_str()).unwrap_or_default();
+            if stderr.trim().is_empty() {
+                return Err(eyre!("{} (exit status {:?})", msg, status));
             } else {
-                cmd.capture()?;
+                return Err(eyre!(
+                    "{} (exit status {:?})\nstderr:\n{}",
+                    msg,
+                    status,
+                    stderr
+                ));
             }
         }
 
