@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
+use color_eyre::eyre::{Result, bail};
 use tracing::debug;
 
 #[derive(Debug, Clone)]
@@ -172,7 +173,7 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
     })
 }
 
-pub fn print_info(mut generations: Vec<GenerationInfo>) {
+pub fn print_info(mut generations: Vec<GenerationInfo>) -> Result<()> {
     let closure = {
         // Get path information for the *current generation* from /run/current-system
         // and split it by whitespace to get the size (second part). This should be
@@ -214,7 +215,7 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
     if let Some(current) = current_generation {
         println!("NixOS {}", current.nixos_version);
     } else {
-        println!("Error getting current generation!");
+        bail!("Error getting current generation!");
     }
 
     println!("Closure Size: {closure}");
@@ -278,4 +279,5 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) {
             width_kernel = max_kernel_len
         );
     }
+    Ok(())
 }

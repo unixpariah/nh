@@ -727,7 +727,7 @@ impl OsGenerationsArgs {
             .filter_map(|gen_dir| generations::describe(gen_dir))
             .collect();
 
-        generations::print_info(descriptions);
+        let _ = generations::print_info(descriptions);
 
         Ok(())
     }
