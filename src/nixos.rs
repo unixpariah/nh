@@ -165,7 +165,8 @@ impl OsRebuildArgs {
             .builder(self.build_host.clone())
             .message(message)
             .nom(!self.common.no_nom)
-            .run()?;
+            .run()
+            .wrap_err("Failed to build configuration")?;
 
         let current_specialisation = std::fs::read_to_string(SPEC_LOCATION).ok();
 
@@ -250,7 +251,6 @@ impl OsRebuildArgs {
         }
 
         if let Test | Switch = variant {
-            // !! Use the target profile aka spec-namespaced
             let switch_to_configuration =
                 target_profile.join("bin").join("switch-to-configuration");
 
@@ -281,7 +281,8 @@ impl OsRebuildArgs {
                 .message("Activating configuration")
                 .elevate(elevate)
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
-                .run()?;
+                .run()
+                .wrap_err("Activation (test) failed")?;
         }
 
         if let Boot | Switch = variant {
@@ -295,9 +296,9 @@ impl OsRebuildArgs {
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
                 .arg(&canonical_out_path)
                 .ssh(self.target_host.clone())
-                .run()?;
+                .run()
+                .wrap_err("Failed to set system profile")?;
 
-            // !! Use the base profile aka no spec-namespace
             let switch_to_configuration = out_path
                 .get_path()
                 .join("bin")
@@ -326,7 +327,8 @@ impl OsRebuildArgs {
                 .elevate(elevate)
                 .message("Adding configuration to bootloader")
                 .preserve_envs(["NIXOS_INSTALL_BOOTLOADER"])
-                .run()?;
+                .run()
+                .wrap_err("Bootloader activation failed")?;
         }
 
         // Make sure out_path is not accidentally dropped
@@ -423,7 +425,8 @@ impl OsRollbackArgs {
             .arg(SYSTEM_PROFILE)
             .elevate(elevate)
             .message("Setting system profile")
-            .run()?;
+            .run()
+            .wrap_err("Failed to set system profile during rollback")?;
 
         // Determine the correct profile to use with specialisations
         let final_profile = match &target_specialisation {
@@ -482,10 +485,12 @@ impl OsRollbackArgs {
                         .arg(SYSTEM_PROFILE)
                         .elevate(elevate)
                         .message("Rolling back system profile")
-                        .run()?;
+                        .run()
+                        .wrap_err("NixOS: Failed to restore previous system profile after failed activation")?;
                 }
 
-                return Err(e).context("Failed to activate configuration");
+                return Err(eyre!("Activation (switch) failed: {}", e))
+                    .context("Failed to activate configuration");
             }
         }
 
@@ -589,7 +594,7 @@ fn get_current_generation_number() -> Result<u64> {
     current_gen
         .number
         .parse::<u64>()
-        .map_err(|_| eyre!("Invalid generation number"))
+        .wrap_err("Invalid generation number")
 }
 
 pub fn get_final_attr(build_vm: bool, with_bootloader: bool) -> String {

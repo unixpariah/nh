@@ -100,7 +100,8 @@ impl DarwinRebuildArgs {
             .extra_args(&self.extra_args)
             .message("Building Darwin configuration")
             .nom(!self.common.no_nom)
-            .run()?;
+            .run()
+            .wrap_err("Failed to build Darwin configuration")?;
 
         let target_profile = out_path.get_path().to_owned();
 
@@ -144,7 +145,8 @@ impl DarwinRebuildArgs {
                 .arg(out_path.get_path())
                 .elevate(true)
                 .dry(self.common.dry)
-                .run()?;
+                .run()
+                .wrap_err("Failed to set Darwin system profile")?;
 
             let darwin_rebuild = out_path.get_path().join("sw/bin/darwin-rebuild");
             let activate_user = out_path.get_path().join("activate-user");
@@ -164,7 +166,8 @@ impl DarwinRebuildArgs {
                 .elevate(needs_elevation)
                 .dry(self.common.dry)
                 .show_output(true)
-                .run()?;
+                .run()
+                .wrap_err("Darwin activation failed")?;
         }
 
         // Make sure out_path is not accidentally dropped

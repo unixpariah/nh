@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use color_eyre::Result;
-use color_eyre::eyre::bail;
+use color_eyre::eyre::{Context, bail};
 use tracing::{debug, info, warn};
 
 use crate::commands;
@@ -85,7 +85,8 @@ impl HomeRebuildArgs {
             .extra_args(&self.extra_args)
             .message("Building Home-Manager configuration")
             .nom(!self.common.no_nom)
-            .run()?;
+            .run()
+            .wrap_err("Failed to build Home-Manager configuration")?;
 
         let prev_generation: Option<PathBuf> = [
             PathBuf::from("/nix/var/nix/profiles/per-user")
@@ -159,7 +160,8 @@ impl HomeRebuildArgs {
 
         Command::new(target_profile.get_path().join("activate"))
             .message("Activating configuration")
-            .run()?;
+            .run()
+            .wrap_err("Activation failed")?;
 
         // Make sure out_path is not accidentally dropped
         // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
@@ -233,13 +235,10 @@ where
                         .to_args(),
                     )
                     .run_capture()
-                    .map_err(|e| {
-                        color_eyre::eyre::eyre!(
-                            "Failed running nix eval to check for explicit configuration '{}': {}",
-                            config_name,
-                            e
-                        )
-                    })?;
+                    .wrap_err(format!(
+                        "Failed running nix eval to check for explicit configuration '{}'",
+                        config_name
+                    ))?;
 
                 if check_res.map(|s| s.trim().to_owned()).as_deref() == Some("true") {
                     debug!("Using explicit configuration from flag: {}", config_name);
@@ -287,13 +286,10 @@ where
                             .to_args(),
                         )
                         .run_capture()
-                        .map_err(|e| {
-                            color_eyre::eyre::eyre!(
-                                "Failed running nix eval to check for automatic configuration '{}': {}",
-                                attr_name,
-                                e
-                            )
-                        })?;
+                        .wrap_err(format!(
+                            "Failed running nix eval to check for automatic configuration '{}'",
+                            attr_name
+                        ))?;
 
                     let current_try_attr = {
                         let mut attr_path = attribute.clone();
