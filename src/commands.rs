@@ -297,21 +297,17 @@ impl Command {
             return Ok(());
         }
 
+        let msg = self
+            .message
+            .clone()
+            .unwrap_or_else(|| "Command failed".to_string());
         let res = cmd.capture();
         if let Err(e) = res {
-            let msg = self
-                .message
-                .clone()
-                .unwrap_or_else(|| "Command failed".to_string());
-            return Err(e).wrap_err(msg);
+            return Err(e).wrap_err(msg.clone());
         }
 
         let status = &res.as_ref().unwrap().exit_status;
         if !status.success() {
-            let msg = self
-                .message
-                .clone()
-                .unwrap_or_else(|| "Command failed".to_string());
             let stderr = res.as_ref().map(|r| r.stderr_str()).unwrap_or_default();
             if stderr.trim().is_empty() {
                 return Err(eyre!("{} (exit status {:?})", msg, status));
