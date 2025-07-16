@@ -1,11 +1,11 @@
 [package]
-name = "xtask"
+name              = "xtask"
 version.workspace = true
 edition.workspace = true
-publish = false
+publish           = false
 
 [dependencies]
 clap.workspace = true
-clap_mangen = "0.2.28"
-roff = "0.2.2"
-nh = { path = "../." }
+clap_mangen    = "0.2.28"
+nh             = { path = "../." }
+roff           = "0.2.2"

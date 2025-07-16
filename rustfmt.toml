@@ -1,2 +1,2 @@
-edition = "2024" # keep in sync with Cargo.toml
+edition       = "2024"             # keep in sync with Cargo.toml
 group_imports = "StdExternalCrate"
