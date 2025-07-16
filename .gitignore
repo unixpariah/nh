@@ -1,5 +1,6 @@
 # Rust
 target
+gen*
 
 # Nix
 .direnv
@@ -10,3 +11,4 @@ mutants*
 
 # Misc
 report*
+
