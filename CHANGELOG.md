@@ -33,6 +33,9 @@ functionality, under the "Removed" section.
   `never` and toggles displaying the package diff after a build.
 - Manpages have been added to nh, and will be available as `man 1 nh` if the
   package vendor provides them.
+- `nh clean` will now skip directories that are checked and don't exist. Instead
+  of throwing an error, it will print a warning about which directories were
+  skipped.
 
 ### Fixed
 
