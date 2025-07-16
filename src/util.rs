@@ -215,7 +215,7 @@ pub fn get_missing_experimental_features(required_features: &[&str]) -> Result<V
 ///
 /// ```rust
 /// // Elevate the current process to run as root
-/// self_elevate();
+/// let elevate: fn() -> ! = nh::util::self_elevate;
 /// ```
 pub fn self_elevate() -> ! {
     use std::os::unix::process::CommandExt;
