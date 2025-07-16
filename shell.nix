@@ -12,7 +12,6 @@ mkShell {
     rust-analyzer-unwrapped
     (rustfmt.override { asNightly = true; })
     clippy
-    nvd
     nix-output-monitor
     taplo
     yaml-language-server

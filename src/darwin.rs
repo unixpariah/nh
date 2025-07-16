@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 
 use color_eyre::eyre::{Context, bail};
 use tracing::{debug, info, warn};
@@ -7,10 +8,10 @@ use crate::Result;
 use crate::commands;
 use crate::commands::Command;
 use crate::installable::Installable;
-use crate::interface::{DarwinArgs, DarwinRebuildArgs, DarwinReplArgs, DarwinSubcommand};
+use crate::interface::{DarwinArgs, DarwinRebuildArgs, DarwinReplArgs, DarwinSubcommand, DiffType};
 use crate::nixos::toplevel_for;
 use crate::update::update;
-use crate::util::get_hostname;
+use crate::util::{get_hostname, print_dix_diff};
 
 const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
 const CURRENT_PROFILE: &str = "/run/current-system";
@@ -105,7 +106,7 @@ impl DarwinRebuildArgs {
 
         // Take a strong reference to out_path to prevent premature dropping
         // We need to keep this alive through the entire function scope to prevent
-        // the tempdir from being dropped early, which would cause nvd diff to fail
+        // the tempdir from being dropped early, which would cause dix to fail
         #[allow(unused_variables)]
         let keep_alive = out_path.get_path().to_owned();
         debug!(
@@ -115,13 +116,18 @@ impl DarwinRebuildArgs {
 
         target_profile.try_exists().context("Doesn't exist")?;
 
-        Command::new("nvd")
-            .arg("diff")
-            .arg(CURRENT_PROFILE)
-            .arg(&target_profile)
-            .message("Comparing changes")
-            .show_output(true)
-            .run()?;
+        debug!(
+            "Comparing with target profile: {}",
+            target_profile.display()
+        );
+
+        // Compare changes between current and target generation
+        match self.common.diff {
+            DiffType::Never => {}
+            _ => {
+                let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
+            }
+        }
 
         if self.common.ask && !self.common.dry && !matches!(variant, Build) {
             info!("Apply the config?");

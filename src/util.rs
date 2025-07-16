@@ -1,10 +1,15 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::process::{Command as StdCommand, Stdio};
-use std::str;
-use std::sync::OnceLock;
+use std::{
+    collections::HashSet,
+    fmt,
+    io::{self},
+    path::{Path, PathBuf},
+    process::{Command as StdCommand, Stdio},
+    str,
+    sync::OnceLock,
+};
 
-use color_eyre::{Result, eyre};
+use color_eyre::Result;
+use color_eyre::eyre;
 use tempfile::TempDir;
 use tracing::debug;
 
@@ -19,6 +24,13 @@ pub enum NixVariant {
 
 static NIX_VARIANT: OnceLock<NixVariant> = OnceLock::new();
 
+struct WriteFmt<W: io::Write>(W);
+
+impl<W: io::Write> fmt::Write for WriteFmt<W> {
+    fn write_str(&mut self, string: &str) -> fmt::Result {
+        self.0.write_all(string.as_bytes()).map_err(|_| fmt::Error)
+    }
+}
 /// Get the Nix variant (cached)
 pub fn get_nix_variant() -> Result<&'static NixVariant> {
     NIX_VARIANT.get_or_init(|| {
@@ -224,4 +236,28 @@ pub fn self_elevate() -> ! {
     debug!("{:?}", cmd);
     let err = cmd.exec();
     panic!("{}", err);
+}
+
+pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()> {
+    let mut out = WriteFmt(io::stdout());
+
+    // Handle to the thread collecting closure size information.
+    let closure_size_handle =
+        dix::spawn_size_diff(old_generation.to_path_buf(), new_generation.to_path_buf());
+
+    let wrote =
+        dix::write_paths_diffln(&mut out, old_generation, new_generation).unwrap_or_default();
+
+    if let Ok((size_old, size_new)) = closure_size_handle
+        .join()
+        .map_err(|_| eyre::eyre!("Stupid"))?
+    {
+        if size_old == size_new && wrote == 0 {
+            println!("No version or size changes");
+        } else {
+            println!();
+            dix::write_size_diffln(&mut out, size_old, size_new)?;
+        }
+    }
+    Ok(())
 }

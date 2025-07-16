@@ -135,12 +135,12 @@ Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
 ## Attributions
 
 [nix-output-monitor]: https://github.com/maralorn/nix-output-monitor
-[nvd]: https://khumba.net/projects/nvd
+[dix]: https://github.com/bloxx12/dix
 
 NH would not be possible without that nh runs under the hood:
 
 - Tree of builds with [nix-output-monitor].
-- Visualization of the upgrade diff with [nvd].
+- Visualization of the upgrade diff with [dix].
 - And of course, all the [crates](./Cargo.toml) we depend on.
 
 ## Status
