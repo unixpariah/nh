@@ -225,6 +225,18 @@ impl OsRebuildArgs {
     }
 }
 
+#[derive(ValueEnum, Clone, Default, Debug)]
+pub enum DiffType {
+    /// Display package diff only if the of the
+    /// current and the deployed configuration matches
+    #[default]
+    Auto,
+    /// Always display package diff
+    Always,
+    /// Never display package diff
+    Never,
+}
+
 #[derive(Debug, Args)]
 pub struct OsRollbackArgs {
     /// Only print actions, without performing them
@@ -250,6 +262,10 @@ pub struct OsRollbackArgs {
     /// Don't panic if calling nh as root
     #[arg(short = 'R', long, env = "NH_BYPASS_ROOT_CHECK")]
     pub bypass_root_check: bool,
+
+    /// Whether to display a package diff
+    #[arg(long, short, value_enum, default_value_t = DiffType::Auto)]
+    pub diff: DiffType,
 }
 
 #[derive(Debug, Args)]
@@ -272,6 +288,10 @@ pub struct CommonRebuildArgs {
     /// Path to save the result link, defaults to using a temporary directory
     #[arg(long, short)]
     pub out_link: Option<PathBuf>,
+
+    /// Whether to display a package diff
+    #[arg(long, short, value_enum, default_value_t = DiffType::Auto)]
+    pub diff: DiffType,
 }
 
 #[derive(Debug, Args)]
