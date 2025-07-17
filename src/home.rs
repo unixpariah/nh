@@ -387,6 +387,7 @@ impl HomeReplArgs {
             .with_required_env()
             .arg("repl")
             .args(toplevel.to_args())
+            .show_output(true)
             .run()?;
 
         Ok(())
