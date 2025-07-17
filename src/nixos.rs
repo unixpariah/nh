@@ -696,6 +696,7 @@ impl OsReplArgs {
             .arg("repl")
             .args(target_installable.to_args())
             .with_required_env()
+            .show_output(true)
             .run()?;
 
         Ok(())
