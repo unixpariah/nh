@@ -1,57 +1,10 @@
-use std::sync::LazyLock;
 use std::{cmp::Ordering, env};
 
 use color_eyre::Result;
-use regex::Regex;
 use semver::Version;
 use tracing::{debug, warn};
 
-use crate::util::{self, NixVariant};
-
-// Static regex compiled once for version string normalization
-static VERSION_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d+)\.(\d+)(?:\.(\d+))?").unwrap());
-
-/// Normalizes a version string to be compatible with semver parsing.
-///
-/// This function handles Nix's complex version formats by extracting just the
-/// semantic version part. Examples of supported formats:
-/// - "2.25.0-pre" -> "2.25.0"
-/// - "2.24.14-1" -> "2.24.14"
-/// - "`2.30pre20250521_76a4d4c2`" -> "2.30.0"
-/// - "2.91.1" -> "2.91.1"
-///
-/// # Arguments
-///
-/// * `version` - The raw version string to normalize
-///
-/// # Returns
-///
-/// * `String` - The normalized version string suitable for semver parsing
-fn normalize_version_string(version: &str) -> String {
-    // First, try to extract a version pattern like X.Y or X.Y.Z from the beginning
-    if let Some(captures) = VERSION_REGEX.captures(version) {
-        let major = captures.get(1).unwrap().as_str();
-        let minor = captures.get(2).unwrap().as_str();
-        let patch = captures.get(3).map_or("0", |m| m.as_str());
-
-        format!("{major}.{minor}.{patch}")
-    } else {
-        // Fallback: split on common separators and take the first part
-        let base_version = version
-            .split(&['-', '+', 'p', '_'][..])
-            .next()
-            .unwrap_or(version);
-
-        // Version should have all three components (major.minor.patch)
-        let parts: Vec<&str> = base_version.split('.').collect();
-        match parts.len() {
-            1 => format!("{}.0.0", parts[0]),            // "1" -> "1.0.0"
-            2 => format!("{}.{}.0", parts[0], parts[1]), // "1.2" -> "1.2.0"
-            _ => base_version.to_string(),               // "1.2.3" or more parts, use as-is
-        }
-    }
-}
+use crate::util::{self, NixVariant, normalize_version_string};
 
 /// Verifies if the installed Nix version meets requirements
 ///
@@ -63,8 +16,9 @@ pub fn check_nix_version() -> Result<()> {
         return Ok(());
     }
 
-    let version = util::get_nix_version()?;
     let nix_variant = util::get_nix_variant()?;
+    let version = util::get_nix_version()?;
+    let version_normal = normalize_version_string(&version);
 
     // XXX: Both Nix and Lix follow semantic versioning (semver). Update the
     // versions below once latest stable for either of those packages change.
@@ -93,16 +47,10 @@ pub fn check_nix_version() -> Result<()> {
         _ => MIN_NIX_VERSION,
     };
 
-    // Normalize the version string to handle pre-release versions and distro suffixes
-    let normalized_version = normalize_version_string(&version);
-
-    let current = match Version::parse(&normalized_version) {
+    let current = match Version::parse(&version_normal) {
         Ok(ver) => ver,
         Err(e) => {
-            warn!(
-                "Failed to parse Nix version '{}' (normalized: '{}'): {}. Skipping version check.",
-                version, normalized_version, e
-            );
+            warn!("Failed to parse Nix version '{version_normal}': {e}. Skipping version check.",);
             return Ok(());
         }
     };

@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::{
     collections::HashSet,
     fmt,
@@ -10,6 +11,7 @@ use std::{
 
 use color_eyre::Result;
 use color_eyre::eyre;
+use regex::Regex;
 use tempfile::TempDir;
 use tracing::debug;
 
@@ -63,11 +65,70 @@ pub fn get_nix_variant() -> Result<&'static NixVariant> {
     Ok(NIX_VARIANT.get().unwrap())
 }
 
+// Static regex compiled once for version string normalization
+static VERSION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(\d+)\.(\d+)(?:\.(\d+))?(?:pre\d*)?").unwrap());
+
+/// Normalizes a version string to be compatible with semver parsing.
+///
+/// This function handles, or at least tries to handle, various Nix
+/// vendors' complex version formats by extracting just the semantic
+/// version part.
+///
+/// Examples of supported formats:
+/// - "2.25.0-pre" -> "2.25.0"
+/// - "2.24.14-1" -> "2.24.14"
+/// - "2.30pre20250521_76a4d4c2" -> "2.30.0"
+/// - "2.91.1" -> "2.91.1"
+///
+/// # Arguments
+///
+/// * `version` - The raw version string to normalize
+///
+/// # Returns
+///
+/// * `String` - The normalized version string suitable for semver parsing
+pub fn normalize_version_string(version: &str) -> String {
+    if let Some(captures) = VERSION_REGEX.captures(version) {
+        let major = captures.get(1).unwrap().as_str();
+        let minor = captures.get(2).unwrap().as_str();
+        let patch = captures.get(3).map_or("0", |m| m.as_str());
+
+        let normalized = format!("{major}.{minor}.{patch}");
+        if version != normalized {
+            debug!("Version normalized: '{}' -> '{}'", version, normalized);
+        }
+
+        return normalized;
+    }
+
+    // Fallback: split on common separators and take the first part
+    let base_version = version
+        .split(&['-', '+', 'p', '_'][..])
+        .next()
+        .unwrap_or(version);
+
+    // Version should have all three components (major.minor.patch)
+    let parts: Vec<&str> = base_version.split('.').collect();
+    let normalized = match parts.len() {
+        1 => format!("{}.0.0", parts[0]),            // "1" -> "1.0.0"
+        2 => format!("{}.{}.0", parts[0], parts[1]), // "1.2" -> "1.2.0"
+        _ => base_version.to_string(),               // "1.2.3" or more parts, use as-is
+    };
+
+    if version != normalized {
+        debug!("Version normalized: '{}' -> '{}'", version, normalized);
+    }
+
+    normalized
+}
+
 /// Retrieves the installed Nix version as a string.
 ///
 /// This function executes the `nix --version` command, parses the output to
-/// extract the version string, and returns it. If the version string cannot be
-/// found or parsed, it returns an error.
+/// extract the version string, and returns it. This function does not perform
+/// any kind of validation; it's sole purpose is to get the version. To validate
+/// a version string, use `normalize_version_string()`.
 ///
 /// # Returns
 ///
@@ -84,17 +145,7 @@ pub fn get_nix_version() -> Result<String> {
         .next()
         .ok_or_else(|| eyre::eyre!("No version string found"))?;
 
-    // Extract the version substring using a regular expression
-    let re = regex::Regex::new(r"\d+\.\d+\.\d+")?;
-    if let Some(captures) = re.captures(version_str) {
-        let version = captures
-            .get(0)
-            .ok_or_else(|| eyre::eyre!("No version match found"))?
-            .as_str();
-        return Ok(version.to_string());
-    }
-
-    Err(eyre::eyre!("Failed to extract version"))
+    Ok(version_str.to_string())
 }
 
 /// Prompts the user for ssh key login if needed
