@@ -317,10 +317,12 @@ pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()
         .join()
         .map_err(|_| eyre::eyre!("Failed to join closure size computation thread"))?
     {
-        if size_old == size_new && wrote == 0 {
-            println!("No version or size changes");
+        if size_old == size_new {
+            println!("No version or size changes.");
         } else {
-            println!();
+            if wrote > 0 {
+                println!();
+            }
             dix::write_size_diffln(&mut out, size_old, size_new)?;
         }
     }

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use anstyle::Style;
 use clap::ValueEnum;
 use clap::{Args, Parser, Subcommand, builder::Styles};
+use clap_verbosity_flag::WarnLevel;
 
 use crate::Result;
 use crate::checks::{
@@ -37,9 +38,10 @@ const fn make_style() -> Styles {
 )]
 /// Yet another nix helper
 pub struct Main {
-    #[arg(short, long, global = true)]
-    /// Show debug logs
-    pub verbose: bool,
+    #[command(flatten)]
+    /// Increase logging verbosity, can be passed multiple times for
+    /// more detailed logs.
+    pub verbosity: clap_verbosity_flag::Verbosity<WarnLevel>,
 
     #[command(subcommand)]
     pub command: NHCommand,
