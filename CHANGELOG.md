@@ -36,6 +36,8 @@ functionality, under the "Removed" section.
 - `nh clean` will now skip directories that are checked and don't exist. Instead
   of throwing an error, it will print a warning about which directories were
   skipped.
+- nh's verbosity flag can now be passed multiple times for more verbose debug
+  output.
 
 ### Fixed
 

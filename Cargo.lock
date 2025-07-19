@@ -217,6 +217,7 @@ checksum = "eeab6a5cdfc795a05538422012f20a5496f050223c91be4e5420bfd13c641fb1"
 dependencies = [
  "clap",
  "log",
+ "tracing-core",
 ]
 
 [[package]]
@@ -1101,6 +1102,7 @@ dependencies = [
  "anstyle",
  "chrono",
  "clap",
+ "clap-verbosity-flag",
  "clap_builder",
  "clap_complete",
  "clap_mangen",
