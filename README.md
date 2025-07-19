@@ -1,9 +1,19 @@
-<!-- markdownlint-disable no-inline-html -->
-<!-- markdownlint-disable first-line-heading -->
+<!-- markdownlint-disable no-inline-html first-line-heading line-length -->
 <div align="center">
   <h1>nh</h1>
-  <!-- markdownlint-disable line-length -->
   <h6>Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
+  <a alt="CI" href="https://github.com/nix-community/nh/actions">
+    <img
+      src="https://github.com/nix-community/nh/actions/workflows/build.yaml/badge.svg"
+      alt="Build Status"
+    />
+  </a>
+  <a alt="Deps" href="https://deps.rs/repo/github/nix-community/nh">
+    <img
+      src="https://deps.rs/repo/github/nix-community/nh/status.svg"
+      alt="Dependency Status"
+    />
+  </a>
   <br/>
   <a href="#what-does-it-do">Synopsis</a><br/>
   <a href="#features">Features</a> | <a href="#usage">Usage</a><br/>
@@ -36,8 +46,24 @@ that reimplements well known Nix commands.
   specialisations via flags.
 - **Generation Management**: Inspect, rollback, and manage system generations
   with explicit targeting.
-- **Extensible & Futureproof**: Designed for rapid addition of new subcommands
-  and flags.
+- **Extensible & Futureproof**: Designed for seamless, rapid addition of new
+  subcommands and flags.
+
+## Status
+
+NH is packaged in nixpkgs, and is available under both nixpkgs stable and
+nixpkgs unstable. Outside of extreme circumstances, all updates will be
+backported to the stable branch. Refer to the [installation](#installation)
+section for more details.
+
+<a href="https://repology.org/project/nh/versions">
+    <img
+      src="https://repology.org/badge/vertical-allrepos/nh.svg"
+      alt="Packaging status"
+      align="right"
+      style="padding-left: 20px"
+    >
+</a>
 
 ## Usage
 
@@ -72,7 +98,7 @@ all with their extensive CLI flags for extensive configuration.
 [^1]: `nh os` does not yet provide full feature parity with `nixos-rebuild`.
     While a large collection of subcommands have been implemented, you might be
     missing some features. Please visit
-    [#254](https://github.com/nix-community/nh/issues/254) for a roadmap.
+    [#358](https://github.com/nix-community/nh/issues/358) for a roadmap.
 
 See the help page for individual subcommands, or `man 1 nh` for more information
 on each subcommand.
@@ -97,19 +123,21 @@ We provide a NixOS module that integrates `nh clean` as a service. To enable it,
 set the following configuration:
 
 ```nix
-{ config, pkgs, ... }:
 {
   programs.nh = {
     enable = true;
     clean.enable = true;
     clean.extraArgs = "--keep-since 4d --keep 3";
-    flake = "/home/user/my-nixos-config";
+    flake = "/home/user/my-nixos-config"; # sets NH_OS_FLAKE variable for you
   };
 }
 ```
 
-As of 4.0, NH supports both **Flakes** and classical NixOS configurations
-(channels or manual pinning.)
+> [!TIP]
+> As of 4.0, NH fully supports both **Nix flakes** and classical NixOS
+> configurations via channels or manual dependency pinning and the such. Please
+> consider installables support mature, but somewhat experimental as it is a new
+> addition. Remember to report any bugs!
 
 - For flakes, the command is `nh os switch /path/to/flake`
 - For a classical configuration:
@@ -179,7 +207,7 @@ generate manpages and possibly more in the future. Some of the
 
 ### Submitting Changes
 
-Once your changes are complete, remember to run [fix.sh](./fix.sh) to apply
+Once your changes are complete, remember to run [fix.sh](./fix.sh) to applyg
 general formatter and linter rules that will be expected by the CI.
 
 Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
@@ -189,7 +217,7 @@ Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
 [nix-output-monitor]: https://github.com/maralorn/nix-output-monitor
 [dix]: https://github.com/bloxx12/dix
 
-NH would not be possible without that nh runs under the hood:
+NH would not be possible without all thee tools we run under the hood
 
 - Tree of builds with [nix-output-monitor].
 - Visualization of the upgrade diff with [dix].
@@ -197,9 +225,3 @@ NH would not be possible without that nh runs under the hood:
 
 Last but not least, thank you to those who contributed to NH or simply talked
 about it on various channels. NH would not be where it is without you.
-
-## Status
-
-[![Dependency status](https://deps.rs/repo/github/nix-community/nh/status.svg)](https://deps.rs/repo/github/nix-community/nh)
-
-[![Packaging status](https://repology.org/badge/vertical-allrepos/nh.svg)](https://repology.org/project/unit/versions)
