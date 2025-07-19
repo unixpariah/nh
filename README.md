@@ -1,7 +1,6 @@
 <!-- markdownlint-disable no-inline-html first-line-heading line-length -->
 <div align="center">
-  <h1>nh</h1>
-  <h6>Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
+  <h1 id="header">nh</h1>
   <a alt="CI" href="https://github.com/nix-community/nh/actions">
     <img
       src="https://github.com/nix-community/nh/actions/workflows/build.yaml/badge.svg"
@@ -14,6 +13,14 @@
       alt="Dependency Status"
     />
   </a>
+  <a alt="License" href="https://img.shields.io/github/license/nix-community/nh?label=License">
+    <img
+      src="https://github.com/nix-community/nh/blob/master/LICENSE"
+      alt="License"
+    />
+  </a>
+  <br/>
+  <h6>Because the name "yet-another-<u>n</u>ix-<u>h</u>elper" was too long to type...</h1>
   <br/>
   <a href="#what-does-it-do">Synopsis</a><br/>
   <a href="#features">Features</a> | <a href="#usage">Usage</a><br/>
@@ -51,10 +58,7 @@ that reimplements well known Nix commands.
 
 ## Status
 
-NH is packaged in nixpkgs, and is available under both nixpkgs stable and
-nixpkgs unstable. Outside of extreme circumstances, all updates will be
-backported to the stable branch. Refer to the [installation](#installation)
-section for more details.
+[update request]: https://github.com/NixOS/nixpkgs/issues
 
 <a href="https://repology.org/project/nh/versions">
     <img
@@ -64,6 +68,12 @@ section for more details.
       style="padding-left: 20px"
     >
 </a>
+
+NH is packaged in nixpkgs, and is available under both nixpkgs stable and
+nixpkgs unstable. Outside of extreme circumstances, all updates will be
+backported to the stable branch. Refer to the [installation](#installation)
+section for more details. Make sure you submit an [update request] in Nixpkgs if
+the package is outdated.
 
 ## Usage
 
