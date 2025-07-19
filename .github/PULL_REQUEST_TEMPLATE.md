@@ -29,7 +29,7 @@ please do make sure to include it above in your description.
   - [ ] I ran **`cargo fmt`** to format my Rust code
   - [ ] My changes are consistent with the rest of the codebase
 - Correctness
-  - [ ] I ran **`cargo clippy**` and fixed any new linter warnings.
+  - [ ] I ran **`cargo clippy`** and fixed any new linter warnings.
 - If new changes are particularly complex:
   - [ ] My code includes comments in particularly complex areas
 - Tested on platform(s)
