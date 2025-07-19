@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     let args = <crate::interface::Main as clap::Parser>::parse();
 
     // Set up logging
-    crate::logging::setup_logging(args.verbose)?;
+    crate::logging::setup_logging(args.verbosity)?;
     tracing::debug!("{args:#?}");
     tracing::debug!(%NH_VERSION, ?NH_REV);
 

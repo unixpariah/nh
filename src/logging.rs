@@ -1,13 +1,11 @@
+use clap_verbosity_flag::WarnLevel;
 use owo_colors::OwoColorize;
 use tracing::Event;
 use tracing::Level;
 use tracing::Subscriber;
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::filter::FilterExt;
-use tracing_subscriber::filter::filter_fn;
-use tracing_subscriber::fmt;
-use tracing_subscriber::fmt::FormatEvent;
-use tracing_subscriber::fmt::FormatFields;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::fmt::{self, FormatEvent, FormatFields};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
 
@@ -31,12 +29,12 @@ where
         let metadata = event.metadata();
         let level = metadata.level();
 
-        if *level == Level::ERROR {
-            write!(writer, "{} ", "!".red())?;
-        } else if *level == Level::WARN {
-            write!(writer, "{} ", "!".yellow())?;
-        } else {
-            write!(writer, "{} ", ">".green())?;
+        match *level {
+            Level::ERROR => write!(writer, "{} ", "ERROR".red())?,
+            Level::WARN => write!(writer, "{} ", "!".yellow())?,
+            Level::INFO => write!(writer, "{} ", ">".green())?,
+            Level::DEBUG => write!(writer, "{} ", "DEBUG".blue())?,
+            Level::TRACE => write!(writer, "{} ", "TRACE".bright_blue())?,
         }
 
         ctx.field_format().format_fields(writer.by_ref(), event)?;
@@ -52,36 +50,32 @@ where
     }
 }
 
-pub fn setup_logging(verbose: bool) -> Result<()> {
+pub fn setup_logging(verbosity: clap_verbosity_flag::Verbosity<WarnLevel>) -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .display_location_section(true)
         .panic_section("Please report the bug at https://github.com/nix-community/nh/issues")
         .display_env_section(false)
         .install()?;
 
-    let layer_debug = fmt::layer()
+    let fallback_level = verbosity
+        .log_level()
+        .map_or(LevelFilter::WARN, |level| match level {
+            clap_verbosity_flag::log::Level::Error => LevelFilter::ERROR,
+            clap_verbosity_flag::log::Level::Warn => LevelFilter::WARN,
+            clap_verbosity_flag::log::Level::Info => LevelFilter::INFO,
+            clap_verbosity_flag::log::Level::Debug => LevelFilter::DEBUG,
+            clap_verbosity_flag::log::Level::Trace => LevelFilter::TRACE,
+        });
+
+    let layer = fmt::layer()
         .with_writer(std::io::stderr)
         .without_time()
         .compact()
         .with_line_number(true)
-        .with_filter(EnvFilter::from_env("NH_LOG").or(filter_fn(move |_| verbose)))
-        .with_filter(filter_fn(|meta| *meta.level() > Level::INFO));
-
-    let layer_info = fmt::layer()
-        .with_writer(std::io::stderr)
-        .without_time()
-        .with_target(false)
-        .with_level(false)
         .event_format(InfoFormatter)
-        .with_filter(filter_fn(|meta| {
-            let level = *meta.level();
-            (level == Level::INFO) || (level == Level::WARN)
-        }));
+        .with_filter(EnvFilter::from_env("NH_LOG").add_directive(fallback_level.into()));
 
-    tracing_subscriber::registry()
-        .with(layer_debug)
-        .with(layer_info)
-        .init();
+    tracing_subscriber::registry().with(layer).init();
 
     tracing::trace!("Logging OK");
 
