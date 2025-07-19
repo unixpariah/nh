@@ -5,9 +5,10 @@ use color_eyre::{
     Result,
     eyre::{Context, bail},
 };
+use owo_colors::OwoColorize;
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::installable::Installable;
 
@@ -310,7 +311,7 @@ impl Command {
         );
 
         if let Some(m) = &self.message {
-            info!("{}", m);
+            println!("{} {m}", ">".green());
         }
 
         debug!(?cmd);
@@ -352,7 +353,7 @@ impl Command {
         );
 
         if let Some(m) = &self.message {
-            info!("{}", m);
+            println!("{} {m}", ">".green());
         }
 
         debug!(?cmd);
@@ -420,7 +421,7 @@ impl Build {
 
     pub fn run(&self) -> Result<()> {
         if let Some(m) = &self.message {
-            info!("{}", m);
+            println!("{} {m}", ">".green());
         }
 
         let installable_args = self.installable.to_args();
