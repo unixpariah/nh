@@ -78,7 +78,7 @@ static VERSION_REGEX: LazyLock<Regex> =
 /// Examples of supported formats:
 /// - "2.25.0-pre" -> "2.25.0"
 /// - "2.24.14-1" -> "2.24.14"
-/// - "2.30pre20250521_76a4d4c2" -> "2.30.0"
+/// - "`2.30pre20250521_76a4d4c2`" -> "2.30.0"
 /// - "2.91.1" -> "2.91.1"
 ///
 /// # Arguments

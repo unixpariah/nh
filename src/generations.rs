@@ -175,23 +175,29 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
 }
 
 pub fn print_info(mut generations: Vec<GenerationInfo>) -> Result<()> {
-    let closure = {
-        // Get path information for the *current generation* from /run/current-system
-        // and split it by whitespace to get the size (second part). This should be
-        // safe enough, in theory.
-        let path_info = process::Command::new("nix")
-            .arg("path-info")
-            .arg("-Sh")
-            .arg("/run/current-system")
-            .output();
-
-        if let Ok(output) = path_info {
-            let size_info = String::from_utf8_lossy(&output.stdout);
-            let size = size_info.split_whitespace().nth(1).unwrap_or("Unknown");
-            size.to_string()
-        } else {
-            "Unknown".to_string()
+    // Get path information for the current generation from /run/current-system
+    // By using `--json` we can avoid splitting whitespaces to get the correct
+    // closure size, which has created issues in the past.
+    let closure = match process::Command::new("nix")
+        .arg("path-info")
+        .arg("/run/current-system")
+        .arg("-Sh")
+        .arg("--json")
+        .output()
+    {
+        Ok(output) => {
+            debug!("Got the following output for nix path-info: {:#?}", &output);
+            match serde_json::from_str::<serde_json::Value>(&String::from_utf8_lossy(
+                &output.stdout,
+            )) {
+                Ok(json) => json[0]["closureSize"].as_u64().map_or_else(
+                    || "Unknown".to_string(),
+                    |bytes| format!("{:.1} GB", bytes as f64 / 1_073_741_824.0),
+                ),
+                Err(_) => "Unknown".to_string(),
+            }
         }
+        Err(_) => "Unknown".to_string(),
     };
 
     // Parse all dates at once and cache them
