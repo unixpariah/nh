@@ -53,13 +53,15 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
     let build_date = metadata
         .created()
         .or_else(|_| metadata.modified())
-        .map(|system_time| {
-            let duration = system_time
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default();
-            DateTime::<Utc>::from(std::time::UNIX_EPOCH + duration).to_rfc3339()
-        })
-        .unwrap_or_else(|_| "Unknown".to_string());
+        .map_or_else(
+            |_| "Unknown".to_string(),
+            |system_time| {
+                let duration = system_time
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default();
+                DateTime::<Utc>::from(std::time::UNIX_EPOCH + duration).to_rfc3339()
+            },
+        );
 
     let nixos_version = fs::read_to_string(generation_dir.join("nixos-version"))
         .unwrap_or_else(|_| "Unknown".to_string());
