@@ -17,12 +17,12 @@ impl interface::HomeArgs {
     pub fn run(self) -> Result<()> {
         use HomeRebuildVariant::{Build, Switch};
         match self.subcommand {
-            HomeSubcommand::Switch(args) => args.rebuild(Switch),
+            HomeSubcommand::Switch(args) => args.rebuild(&Switch),
             HomeSubcommand::Build(args) => {
                 if args.common.ask || args.common.dry {
                     warn!("`--ask` and `--dry` have no effect for `nh home build`");
                 }
-                args.rebuild(Build)
+                args.rebuild(&Build)
             }
             HomeSubcommand::Repl(args) => args.run(),
         }
@@ -36,7 +36,7 @@ enum HomeRebuildVariant {
 }
 
 impl HomeRebuildArgs {
-    fn rebuild(self, variant: HomeRebuildVariant) -> Result<()> {
+    fn rebuild(self, variant: &HomeRebuildVariant) -> Result<()> {
         use HomeRebuildVariant::Build;
 
         if self.update_args.update_all || self.update_args.update_input.is_some() {

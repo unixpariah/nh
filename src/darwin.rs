@@ -20,12 +20,12 @@ impl DarwinArgs {
     pub fn run(self) -> Result<()> {
         use DarwinRebuildVariant::{Build, Switch};
         match self.subcommand {
-            DarwinSubcommand::Switch(args) => args.rebuild(Switch),
+            DarwinSubcommand::Switch(args) => args.rebuild(&Switch),
             DarwinSubcommand::Build(args) => {
                 if args.common.ask || args.common.dry {
                     warn!("`--ask` and `--dry` have no effect for `nh darwin build`");
                 }
-                args.rebuild(Build)
+                args.rebuild(&Build)
             }
             DarwinSubcommand::Repl(args) => args.run(),
         }
@@ -38,7 +38,7 @@ enum DarwinRebuildVariant {
 }
 
 impl DarwinRebuildArgs {
-    fn rebuild(self, variant: DarwinRebuildVariant) -> Result<()> {
+    fn rebuild(self, variant: &DarwinRebuildVariant) -> Result<()> {
         use DarwinRebuildVariant::{Build, Switch};
 
         if nix::unistd::Uid::effective().is_root() {

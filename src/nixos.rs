@@ -27,14 +27,14 @@ impl interface::OsArgs {
     pub fn run(self) -> Result<()> {
         use OsRebuildVariant::{Boot, Build, Switch, Test};
         match self.subcommand {
-            OsSubcommand::Boot(args) => args.rebuild(Boot, None),
-            OsSubcommand::Test(args) => args.rebuild(Test, None),
-            OsSubcommand::Switch(args) => args.rebuild(Switch, None),
+            OsSubcommand::Boot(args) => args.rebuild(&Boot, None),
+            OsSubcommand::Test(args) => args.rebuild(&Test, None),
+            OsSubcommand::Switch(args) => args.rebuild(&Switch, None),
             OsSubcommand::Build(args) => {
                 if args.common.ask || args.common.dry {
                     warn!("`--ask` and `--dry` have no effect for `nh os build`");
                 }
-                args.rebuild(Build, None)
+                args.rebuild(&Build, None)
             }
             OsSubcommand::BuildVm(args) => args.build_vm(),
             OsSubcommand::Repl(args) => args.run(),
@@ -58,13 +58,13 @@ impl OsBuildVmArgs {
         let final_attr = get_final_attr(true, self.with_bootloader);
         debug!("Building VM with attribute: {}", final_attr);
         self.common
-            .rebuild(OsRebuildVariant::BuildVm, Some(final_attr))
+            .rebuild(&OsRebuildVariant::BuildVm, Some(final_attr))
     }
 }
 
 impl OsRebuildArgs {
     // final_attr is the attribute of config.system.build.X to evaluate.
-    fn rebuild(self, variant: OsRebuildVariant, final_attr: Option<String>) -> Result<()> {
+    fn rebuild(self, variant: &OsRebuildVariant, final_attr: Option<String>) -> Result<()> {
         use OsRebuildVariant::{Boot, Build, BuildVm, Switch, Test};
 
         if self.build_host.is_some() || self.target_host.is_some() {
