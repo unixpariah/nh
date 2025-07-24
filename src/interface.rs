@@ -741,10 +741,6 @@ pub struct NixBuildPassthroughArgs {
     /// Output results in JSON format
     #[arg(long)]
     pub json: bool,
-
-    /// Reduce output verbosity
-    #[arg(long)]
-    pub quiet: bool,
 }
 
 impl NixBuildPassthroughArgs {
@@ -828,9 +824,6 @@ impl NixBuildPassthroughArgs {
         }
         if self.json {
             args.push("--json".into());
-        }
-        if self.quiet {
-            args.push("--quiet".into());
         }
 
         args
