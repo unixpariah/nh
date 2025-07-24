@@ -300,17 +300,14 @@ where
                     };
                     tried.push(current_try_attr.clone());
 
-                    match check_res.map(|s| s.trim().to_owned()).as_deref() {
-                        Some("true") => {
-                            debug!("Using automatically detected configuration: {}", attr_name);
-                            attribute.push(attr_name);
-                            if push_drv {
-                                attribute.extend(toplevel.clone());
-                            }
-                            found_config = true;
-                            break;
+                    if let Some("true") = check_res.map(|s| s.trim().to_owned()).as_deref() {
+                        debug!("Using automatically detected configuration: {}", attr_name);
+                        attribute.push(attr_name);
+                        if push_drv {
+                            attribute.extend(toplevel.clone());
                         }
-                        _ => {}
+                        found_config = true;
+                        break;
                     }
                 }
 

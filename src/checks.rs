@@ -12,14 +12,6 @@ use crate::util::{self, NixVariant, normalize_version_string};
 ///
 /// * `Result<()>` - Ok if version requirements are met, error otherwise
 pub fn check_nix_version() -> Result<()> {
-    if env::var("NH_NO_CHECKS").is_ok() {
-        return Ok(());
-    }
-
-    let nix_variant = util::get_nix_variant()?;
-    let version = util::get_nix_version()?;
-    let version_normal = normalize_version_string(&version);
-
     // XXX: Both Nix and Lix follow semantic versioning (semver). Update the
     // versions below once latest stable for either of those packages change.
     // We *also* cannot (or rather, will not) make this check for non-nixpkgs
@@ -29,6 +21,14 @@ pub fn check_nix_version() -> Result<()> {
     // TODO: Set up a CI to automatically update those in the future.
     const MIN_LIX_VERSION: &str = "2.91.3";
     const MIN_NIX_VERSION: &str = "2.28.4";
+
+    if env::var("NH_NO_CHECKS").is_ok() {
+        return Ok(());
+    }
+
+    let nix_variant = util::get_nix_variant()?;
+    let version = util::get_nix_version()?;
+    let version_normal = normalize_version_string(&version);
 
     // Minimum supported versions. Those should generally correspond to
     // latest package versions in the stable branch.
