@@ -9,19 +9,19 @@ jobs:
   main:
     runs-on: ubuntu-latest
 
-    steps: 
+    steps:
       - name: Check nixos-search version
         run: |
           VERSION_CONTENT=$(curl --silent "https://raw.githubusercontent.com/nixos/nixos-search/main/VERSION" | tr -d '[:space:]')
           # NOTE: this number and the version number in src/search.rs have
           # to be updated when nixos-search updates it's version number.
           VERSION_NUMBER=43
-          
+
           echo "Found VERSION: $VERSION_CONTENT"
-          
+
           if [ "$VERSION_CONTENT" != "$VERSION_NUMBER" ]; then
-            echo "ERROR: Expected version $VERSION_NUMBER, but found $VERSION_CONTENT"
+            echo "::error:: Expected version $VERSION_NUMBER, but found $VERSION_CONTENT"
             exit 1
           fi
-          
+
           echo "Version check passed. nixos-search version is $VERSION_NUMBER."
