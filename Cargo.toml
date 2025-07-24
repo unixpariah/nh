@@ -29,7 +29,7 @@ path = "src/lib.rs"
 anstyle = "1.0.0"
 chrono = "0.4.39"
 clap.workspace = true
-clap-verbosity-flag = { version = "3.0.3", features = ["tracing"], default-features = false }
+clap-verbosity-flag = { version = "3.0.3", features = [ "tracing" ], default-features = false }
 clap_builder = "4.5.41"
 clap_complete = "4.5.8"
 clean-path = "0.2"

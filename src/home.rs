@@ -17,12 +17,12 @@ impl interface::HomeArgs {
     pub fn run(self) -> Result<()> {
         use HomeRebuildVariant::{Build, Switch};
         match self.subcommand {
-            HomeSubcommand::Switch(args) => args.rebuild(Switch),
+            HomeSubcommand::Switch(args) => args.rebuild(&Switch),
             HomeSubcommand::Build(args) => {
                 if args.common.ask || args.common.dry {
                     warn!("`--ask` and `--dry` have no effect for `nh home build`");
                 }
-                args.rebuild(Build)
+                args.rebuild(&Build)
             }
             HomeSubcommand::Repl(args) => args.run(),
         }
@@ -36,7 +36,7 @@ enum HomeRebuildVariant {
 }
 
 impl HomeRebuildArgs {
-    fn rebuild(self, variant: HomeRebuildVariant) -> Result<()> {
+    fn rebuild(self, variant: &HomeRebuildVariant) -> Result<()> {
         use HomeRebuildVariant::Build;
 
         if self.update_args.update_all || self.update_args.update_input.is_some() {
@@ -300,19 +300,14 @@ where
                     };
                     tried.push(current_try_attr.clone());
 
-                    match check_res.map(|s| s.trim().to_owned()).as_deref() {
-                        Some("true") => {
-                            debug!("Using automatically detected configuration: {}", attr_name);
-                            attribute.push(attr_name);
-                            if push_drv {
-                                attribute.extend(toplevel.clone());
-                            }
-                            found_config = true;
-                            break;
+                    if let Some("true") = check_res.map(|s| s.trim().to_owned()).as_deref() {
+                        debug!("Using automatically detected configuration: {}", attr_name);
+                        attribute.push(attr_name);
+                        if push_drv {
+                            attribute.extend(toplevel.clone());
                         }
-                        _ => {
-                            continue;
-                        }
+                        found_config = true;
+                        break;
                     }
                 }
 
