@@ -34,7 +34,7 @@ impl<W: io::Write> fmt::Write for WriteFmt<W> {
     }
 }
 /// Get the Nix variant (cached)
-pub fn get_nix_variant() -> Result<&'static NixVariant> {
+pub fn get_nix_variant() -> &'static NixVariant {
     NIX_VARIANT.get_or_init(|| {
         let output = Command::new("nix")
             .arg("--version")
@@ -62,7 +62,9 @@ pub fn get_nix_variant() -> Result<&'static NixVariant> {
         }
     });
 
-    Ok(NIX_VARIANT.get().unwrap())
+    NIX_VARIANT
+        .get()
+        .expect("NIX_VARIANT should be initialized by get_nix_variant")
 }
 
 // Static regex compiled once for version string normalization

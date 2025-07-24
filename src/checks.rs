@@ -26,7 +26,7 @@ pub fn check_nix_version() -> Result<()> {
         return Ok(());
     }
 
-    let nix_variant = util::get_nix_variant()?;
+    let nix_variant = util::get_nix_variant();
     let version = util::get_nix_version()?;
     let version_normal = normalize_version_string(&version);
 
@@ -167,11 +167,10 @@ impl FeatureRequirements for FlakeFeatures {
         // Determinate Nix doesn't require nix-command or flakes to be experimental
         // as they simply decided to mark those as no-longer-experimental-lol. Remove
         // redundant experimental features if the Nix variant is determinate.
-        if let Ok(variant) = util::get_nix_variant() {
-            if !matches!(variant, NixVariant::Determinate) {
-                features.push("nix-command");
-                features.push("flakes");
-            }
+        let variant = util::get_nix_variant();
+        if !matches!(variant, NixVariant::Determinate) {
+            features.push("nix-command");
+            features.push("flakes");
         }
 
         features
@@ -207,31 +206,29 @@ impl FeatureRequirements for OsReplFeatures {
         }
 
         // For flake repls, check if we need experimental features
-        if let Ok(variant) = util::get_nix_variant() {
-            match variant {
-                NixVariant::Determinate => {
-                    // Determinate Nix doesn't need experimental features
-                }
-                NixVariant::Lix => {
-                    features.push("nix-command");
-                    features.push("flakes");
+        match util::get_nix_variant() {
+            NixVariant::Determinate => {
+                // Determinate Nix doesn't need experimental features
+            }
+            NixVariant::Lix => {
+                features.push("nix-command");
+                features.push("flakes");
 
-                    // Lix-specific repl-flake feature for older versions
-                    if let Ok(version) = util::get_nix_version() {
-                        let normalized_version = normalize_version_string(&version);
-                        if let Ok(current) = Version::parse(&normalized_version) {
-                            if let Ok(threshold) = Version::parse("2.93.0") {
-                                if current < threshold {
-                                    features.push("repl-flake");
-                                }
+                // Lix-specific repl-flake feature for older versions
+                if let Ok(version) = util::get_nix_version() {
+                    let normalized_version = normalize_version_string(&version);
+                    if let Ok(current) = Version::parse(&normalized_version) {
+                        if let Ok(threshold) = Version::parse("2.93.0") {
+                            if current < threshold {
+                                features.push("repl-flake");
                             }
                         }
                     }
                 }
-                NixVariant::Nix => {
-                    features.push("nix-command");
-                    features.push("flakes");
-                }
+            }
+            NixVariant::Nix => {
+                features.push("nix-command");
+                features.push("flakes");
             }
         }
 
@@ -255,11 +252,10 @@ impl FeatureRequirements for HomeReplFeatures {
         }
 
         // For flake repls, only need nix-command and flakes
-        if let Ok(variant) = util::get_nix_variant() {
-            if !matches!(variant, NixVariant::Determinate) {
-                features.push("nix-command");
-                features.push("flakes");
-            }
+        let variant = util::get_nix_variant();
+        if !matches!(variant, NixVariant::Determinate) {
+            features.push("nix-command");
+            features.push("flakes");
         }
 
         features
@@ -282,11 +278,10 @@ impl FeatureRequirements for DarwinReplFeatures {
         }
 
         // For flake repls, only need nix-command and flakes
-        if let Ok(variant) = util::get_nix_variant() {
-            if !matches!(variant, NixVariant::Determinate) {
-                features.push("nix-command");
-                features.push("flakes");
-            }
+        let variant = util::get_nix_variant();
+        if !matches!(variant, NixVariant::Determinate) {
+            features.push("nix-command");
+            features.push("flakes");
         }
 
         features
