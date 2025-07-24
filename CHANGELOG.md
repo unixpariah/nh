@@ -38,6 +38,7 @@ functionality, under the "Removed" section.
   skipped.
 - nh's verbosity flag can now be passed multiple times for more verbose debug
   output.
+- `nh search` will now use the system trust store for it's HTTPS requests.
 
 ### Fixed
 
