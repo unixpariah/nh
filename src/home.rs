@@ -310,9 +310,7 @@ where
                             found_config = true;
                             break;
                         }
-                        _ => {
-                            continue;
-                        }
+                        _ => {}
                     }
                 }
 
