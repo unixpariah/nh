@@ -420,6 +420,7 @@ impl Build {
         self
     }
 
+    #[must_use]
     pub fn passthrough(self, passthrough: &NixBuildPassthroughArgs) -> Self {
         self.extra_args(passthrough.generate_passthrough_args())
     }

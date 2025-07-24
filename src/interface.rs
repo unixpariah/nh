@@ -748,6 +748,7 @@ pub struct NixBuildPassthroughArgs {
 }
 
 impl NixBuildPassthroughArgs {
+    #[must_use]
     pub fn generate_passthrough_args(&self) -> Vec<String> {
         let mut args = Vec::new();
 
