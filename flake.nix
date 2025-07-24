@@ -29,8 +29,13 @@
         default = nh;
       });
 
-      # For buildbot and 'nix flake check'
-      checks = self.packages // self.devShells;
+      checks =
+        # For buildbot and 'nix flake check'
+        (self.packages // self.devShells)
+        # VM tests
+        // (forAllSystems (pkgs: {
+          nh-flakes = pkgs.callPackage ./checks/nixos/nh-flakes.nix { };
+        }));
 
       devShells = forAllSystems (pkgs: {
         default = import ./shell.nix { inherit pkgs; };
