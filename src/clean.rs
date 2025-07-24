@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::{
     collections::{BTreeMap, HashMap},
     fmt,
@@ -309,6 +310,10 @@ fn profiles_in_dir<P: AsRef<Path> + fmt::Debug>(dir: P) -> Vec<PathBuf> {
 
     match dir.read_dir() {
         Ok(read_dir) => {
+            static GENERATION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+                Regex::new(r"^(.*)-(\d+)-link$").expect("Failed to compile generation regex")
+            });
+
             for entry in read_dir {
                 match entry {
                     Ok(e) => {
@@ -320,9 +325,7 @@ fn profiles_in_dir<P: AsRef<Path> + fmt::Debug>(dir: P) -> Vec<PathBuf> {
                                 .expect("Failed to get filename")
                                 .to_string_lossy();
 
-                            let generation_regex = Regex::new(r"^(.*)-(\d+)-link$").unwrap();
-
-                            if generation_regex.captures(&name).is_some() {
+                            if GENERATION_REGEX.captures(&name).is_some() {
                                 res.push(path);
                             }
                         }
