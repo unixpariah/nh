@@ -127,40 +127,34 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
     };
 
     // Check if this generation is the current one
-    let run_current_target = match fs::read_link("/run/current-system")
+    let Some(run_current_target) = fs::read_link("/run/current-system")
         .ok()
         .and_then(|p| fs::canonicalize(p).ok())
-    {
-        Some(path) => path,
-        None => {
-            return Some(GenerationInfo {
-                number: generation_number.to_string(),
-                date: build_date,
-                nixos_version,
-                kernel_version,
-                configuration_revision,
-                specialisations,
-                current: false,
-            });
-        }
+    else {
+        return Some(GenerationInfo {
+            number: generation_number.to_string(),
+            date: build_date,
+            nixos_version,
+            kernel_version,
+            configuration_revision,
+            specialisations,
+            current: false,
+        });
     };
 
-    let gen_store_path = match fs::read_link(generation_dir)
+    let Some(gen_store_path) = fs::read_link(generation_dir)
         .ok()
         .and_then(|p| fs::canonicalize(p).ok())
-    {
-        Some(path) => path,
-        None => {
-            return Some(GenerationInfo {
-                number: generation_number.to_string(),
-                date: build_date,
-                nixos_version,
-                kernel_version,
-                configuration_revision,
-                specialisations,
-                current: false,
-            });
-        }
+    else {
+        return Some(GenerationInfo {
+            number: generation_number.to_string(),
+            date: build_date,
+            nixos_version,
+            kernel_version,
+            configuration_revision,
+            specialisations,
+            current: false,
+        });
     };
 
     let current = run_current_target == gen_store_path;
