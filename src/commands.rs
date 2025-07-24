@@ -845,8 +845,8 @@ mod tests {
 
         // Count occurrences of "env" in the command line
         let env_count = cmdline.matches(" env ").count()
-            + if cmdline.starts_with("env ") { 1 } else { 0 }
-            + if cmdline.ends_with(" env") { 1 } else { 0 };
+            + usize::from(cmdline.starts_with("env "))
+            + usize::from(cmdline.ends_with(" env"));
 
         // Should contain env command exactly once when there are explicit environment variables
         assert_eq!(
