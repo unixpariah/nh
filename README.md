@@ -13,9 +13,9 @@
       alt="Dependency Status"
     />
   </a>
-  <a alt="License" href="https://img.shields.io/github/license/nix-community/nh?label=License">
+  <a alt="License" href="https://github.com/nix-community/nh/blob/master/LICENSE">
     <img
-      src="https://github.com/nix-community/nh/blob/master/LICENSE"
+      src="https://img.shields.io/github/license/nix-community/nh?label=License"
       alt="License"
     />
   </a>
