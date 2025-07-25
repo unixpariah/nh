@@ -1,7 +1,5 @@
 {
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-  };
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
 
   outputs =
     {
@@ -22,25 +20,44 @@
       rev = self.shortRev or self.dirtyShortRev or "dirty";
     in
     {
-      overlays.default = final: prev: { nh = final.callPackage ./package.nix { inherit rev; }; };
+      overlays.default = final: _: { nh = final.callPackage ./package.nix { inherit rev; }; };
 
-      packages = forAllSystems (pkgs: rec {
+      packages = forAllSystems (pkgs: {
         nh = pkgs.callPackage ./package.nix { inherit rev; };
-        default = nh;
+        default = self.packags.${pkgs.hostPlatform.system}.nh;
       });
 
       checks =
-        # For buildbot and 'nix flake check'
-        (self.packages // self.devShells)
-        # VM tests
-        // (forAllSystems (pkgs: {
-          nh-flakes = pkgs.callPackage ./checks/nixos/nh-flakes.nix { };
-        }));
+        let
+          # NixOS VM tests
+          tests = forAllSystems (pkgs: {
+            nh-flakes = pkgs.callPackage ./checks/nixos/nh-flakes.nix { };
+          });
+        in
+        self.packages // self.devShells // tests;
 
       devShells = forAllSystems (pkgs: {
         default = import ./shell.nix { inherit pkgs; };
       });
 
-      formatter = forAllSystems (pkgs: pkgs.nixfmt-rfc-style);
+      formatter = forAllSystems (
+        pkgs:
+        # Provides the default formatter for 'nix fmt', which will format the
+        # entire tree with Nixfmt. Treefmt is *wildly* overkill for this project
+        # so a simple bash script will suffice.
+        pkgs.writeShellApplication {
+          name = "nix3-fmt-wrapper";
+
+          runtimeInputs = [
+            pkgs.nixfmt-rfc-style
+            pkgs.fd
+          ];
+
+          text = ''
+            # Find Nix files in the tree and format them with Alejandra
+            fd "$@" -t f -e nix -x nixfmt -q '{}'
+          '';
+        }
+      );
     };
 }

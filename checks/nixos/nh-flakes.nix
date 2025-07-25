@@ -5,82 +5,85 @@
 }:
 testers.runNixOSTest {
   name = "nh-nixos-test";
-  nodes.machine = {
-    lib,
-    pkgs,
-    ...
-  }: {
-    imports = [
-      ../vm.nix
-    ];
+  nodes.machine =
+    {
+      lib,
+      pkgs,
+      ...
+    }:
+    {
+      imports = [
+        ../vm.nix
+      ];
 
-    nix.settings = {
-      substituters = lib.mkForce [];
-      hashed-mirrors = null;
-      connect-timeout = 1;
+      nix.settings = {
+        substituters = lib.mkForce [ ];
+        hashed-mirrors = null;
+        connect-timeout = 1;
+      };
+
+      # Indicate parent config
+      environment.systemPackages = [
+        (pkgs.writeShellScriptBin "parent" "")
+      ];
+
+      programs.nh = {
+        enable = true;
+        flake = "/etc/nixos";
+      };
+
+      users.groups.alice = { };
+      users.users.alice = {
+        isNormalUser = true;
+        password = "";
+      };
     };
 
-    # Indicate parent config
-    environment.systemPackages = [
-      (pkgs.writeShellScriptBin "parent" "")
-    ];
+  testScript =
+    let
+      newConfig =
+        writeText "configuration.nix" # nix
 
-    programs.nh = {
-      enable = true;
-      flake = "/etc/nixos";
-    };
+          ''
+            { lib, pkgs, ... }: {
+              imports = [
+                ./hardware-configuration.nix
+                <nixpkgs/nixos/modules/testing/test-instrumentation.nix>
+              ];
 
-    users.groups.alice = {};
-    users.users.alice = {
-      isNormalUser = true;
-      password = "";
-    };
-  };
+              boot.loader.grub = {
+                enable = true;
+                device = "/dev/vda";
+                forceInstall = true;
+              };
 
-  testScript = let
-    newConfig =
-      writeText "configuration.nix" # nix
+              documentation.enable = false;
 
-      ''
-        { lib, pkgs, ... }: {
-          imports = [
-            ./hardware-configuration.nix
-            <nixpkgs/nixos/modules/testing/test-instrumentation.nix>
-          ];
-
-          boot.loader.grub = {
-            enable = true;
-            device = "/dev/vda";
-            forceInstall = true;
-          };
-
-          documentation.enable = false;
-
-          environment.systemPackages = [
-            (pkgs.writeShellScriptBin "parent" "")
-          ];
+              environment.systemPackages = [
+                (pkgs.writeShellScriptBin "parent" "")
+              ];
 
 
-          specialisation.foo = {
-            inheritParentConfig = true;
+              specialisation.foo = {
+                inheritParentConfig = true;
 
-            configuration = {...}: {
-              environment.etc."specialisation".text = "foo";
-            };
-          };
+                configuration = {...}: {
+                  environment.etc."specialisation".text = "foo";
+                };
+              };
 
-          specialisation.bar = {
-            inheritParentConfig = true;
+              specialisation.bar = {
+                inheritParentConfig = true;
 
-            configuration = {...}: {
-              environment.etc."specialisation".text = "bar";
-            };
-          };
+                configuration = {...}: {
+                  environment.etc."specialisation".text = "bar";
+                };
+              };
 
-          nix.settings.experimental-features = ["nix-command" "flakes"];
-        }
-      '';
-  in
+              nix.settings.experimental-features = ["nix-command" "flakes"];
+            }
+          '';
+    in
     # python
     ''
       machine.start()
