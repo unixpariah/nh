@@ -191,6 +191,7 @@ pub fn print_info(mut generations: Vec<GenerationInfo>) -> Result<()> {
             match serde_json::from_str::<serde_json::Value>(&String::from_utf8_lossy(
                 &output.stdout,
             )) {
+                #[allow(clippy::cast_precision_loss)]
                 Ok(json) => json[0]["closureSize"].as_u64().map_or_else(
                     || "Unknown".to_string(),
                     |bytes| format!("{:.1} GB", bytes as f64 / 1_073_741_824.0),
