@@ -80,7 +80,11 @@ pub fn check_nix_version() -> Result<()> {
 ///
 /// * `Result<bool>` - True if a warning should be shown about the FLAKE
 ///   variable, false otherwise
-pub fn setup_environment() -> Result<bool> {
+///
+/// # Returns
+///
+/// * `bool` - True if a warning should be shown about the FLAKE variable, or false otherwise
+pub fn setup_environment() -> bool {
     let mut do_warn = false;
 
     if let Ok(f) = std::env::var("FLAKE") {
@@ -101,7 +105,7 @@ pub fn setup_environment() -> Result<bool> {
         }
     }
 
-    Ok(do_warn)
+    do_warn
 }
 
 /// Consolidate all necessary checks for Nix functionality into a single
@@ -552,7 +556,7 @@ mod tests {
 
         let _guard = EnvGuard::new("FLAKE", "/test/flake");
 
-        let result = setup_environment().expect("setup_environment should succeed");
+        let result = setup_environment();
 
         assert!(result, "Should warn when migrating FLAKE to NH_FLAKE");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
@@ -572,7 +576,7 @@ mod tests {
         let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
         let _guard2 = EnvGuard::new("NH_FLAKE", "/existing/flake");
 
-        let result = setup_environment().expect("setup_environment should succeed");
+        let result = setup_environment();
 
         assert!(!result, "Should not warn when NH_FLAKE already exists");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/existing/flake");
@@ -592,7 +596,7 @@ mod tests {
         let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
         let _guard2 = EnvGuard::new("NH_OS_FLAKE", "/os/flake");
 
-        let result = setup_environment().expect("setup_environment should succeed");
+        let result = setup_environment();
 
         assert!(!result, "Should not warn when specific flake vars exist");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");

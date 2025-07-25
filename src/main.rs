@@ -33,7 +33,7 @@ fn main() -> Result<()> {
     // Once we assert required Nix features, validate NH environment checks
     // For now, this is just NH_* variables being set. More checks may be
     // added to setup_environment in the future.
-    if checks::setup_environment()? {
+    if checks::setup_environment() {
         tracing::warn!(
             "nh {NH_VERSION} now uses NH_FLAKE instead of FLAKE, please modify your configuration"
         );
