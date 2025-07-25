@@ -416,11 +416,13 @@ impl Build {
         }
     }
 
+    #[must_use]
     pub fn message<S: AsRef<str>>(mut self, message: S) -> Self {
         self.message = Some(message.as_ref().to_string());
         self
     }
 
+    #[must_use]
     pub fn extra_arg<S: AsRef<OsStr>>(mut self, arg: S) -> Self {
         self.extra_args.push(arg.as_ref().to_os_string());
         self
@@ -438,6 +440,7 @@ impl Build {
         self
     }
 
+    #[must_use]
     pub fn extra_args<I>(mut self, args: I) -> Self
     where
         I: IntoIterator,
