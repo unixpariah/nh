@@ -276,6 +276,10 @@ impl Command {
     }
 
     /// Create a sudo command for self-elevation with proper environment handling
+    ///
+    /// # Panics
+    ///
+    /// Panics if the current executable path cannot be determined.
     #[must_use]
     pub fn self_elevate_cmd() -> std::process::Command {
         // Get the current executable path
@@ -305,6 +309,15 @@ impl Command {
         std_cmd
     }
 
+    /// Run the configured command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command fails to execute or returns a non-zero exit status.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the command result is unexpectedly None.
     pub fn run(&self) -> Result<()> {
         let cmd = if self.elevate {
             self.build_sudo_cmd().arg(&self.command).args(&self.args)
@@ -356,6 +369,11 @@ impl Command {
         Ok(())
     }
 
+    /// Run the configured command and capture its output.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command fails to execute.
     pub fn run_capture(&self) -> Result<Option<String>> {
         let cmd = self.apply_env_to_exec(
             Exec::cmd(&self.command)
@@ -436,6 +454,11 @@ impl Build {
         self.extra_args(passthrough.generate_passthrough_args())
     }
 
+    /// Run the build command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the build command fails to execute.
     pub fn run(&self) -> Result<()> {
         if let Some(m) = &self.message {
             println!("{} {m}", ">".green());
