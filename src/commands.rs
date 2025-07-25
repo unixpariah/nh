@@ -63,36 +63,42 @@ impl Command {
         }
     }
 
+    /// Set whether to run the command with elevated privileges.
     #[must_use]
     pub fn elevate(mut self, elevate: bool) -> Self {
         self.elevate = elevate;
         self
     }
 
+    /// Set whether to perform a dry run.
     #[must_use]
     pub fn dry(mut self, dry: bool) -> Self {
         self.dry = dry;
         self
     }
 
+    /// Set whether to show command output.
     #[must_use]
     pub fn show_output(mut self, show_output: bool) -> Self {
         self.show_output = show_output;
         self
     }
 
+    /// Set the SSH target for remote command execution.
     #[must_use]
     pub fn ssh(mut self, ssh: Option<String>) -> Self {
         self.ssh = ssh;
         self
     }
 
+    /// Add a single argument to the command.
     #[must_use]
     pub fn arg<S: AsRef<OsStr>>(mut self, arg: S) -> Self {
         self.args.push(arg.as_ref().to_os_string());
         self
     }
 
+    /// Add multiple arguments to the command.
     #[must_use]
     pub fn args<I>(mut self, args: I) -> Self
     where
@@ -105,6 +111,7 @@ impl Command {
         self
     }
 
+    /// Set a message to display before running the command.
     #[must_use]
     pub fn message<S: AsRef<str>>(mut self, message: S) -> Self {
         self.message = Some(message.as_ref().to_string());
