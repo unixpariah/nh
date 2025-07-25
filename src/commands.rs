@@ -87,11 +87,13 @@ impl Command {
         self
     }
 
+    #[must_use]
     pub fn arg<S: AsRef<OsStr>>(mut self, arg: S) -> Self {
         self.args.push(arg.as_ref().to_os_string());
         self
     }
 
+    #[must_use]
     pub fn args<I>(mut self, args: I) -> Self
     where
         I: IntoIterator,
@@ -103,12 +105,14 @@ impl Command {
         self
     }
 
+    #[must_use]
     pub fn message<S: AsRef<str>>(mut self, message: S) -> Self {
         self.message = Some(message.as_ref().to_string());
         self
     }
 
     /// Preserve multiple environment variables from the current environment
+    #[must_use]
     pub fn preserve_envs<I, K>(mut self, keys: I) -> Self
     where
         I: IntoIterator<Item = K>,
