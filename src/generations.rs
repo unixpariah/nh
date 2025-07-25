@@ -170,6 +170,11 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
     })
 }
 
+/// Print information about the given generations.
+///
+/// # Errors
+///
+/// Returns an error if output or formatting fails.
 pub fn print_info(mut generations: Vec<GenerationInfo>) -> Result<()> {
     // Get path information for the current generation from /run/current-system
     // By using `--json` we can avoid splitting whitespaces to get the correct

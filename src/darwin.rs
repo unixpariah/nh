@@ -17,6 +17,11 @@ const SYSTEM_PROFILE: &str = "/nix/var/nix/profiles/system";
 const CURRENT_PROFILE: &str = "/run/current-system";
 
 impl DarwinArgs {
+    /// Run the `darwin` subcommand.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails.
     pub fn run(self) -> Result<()> {
         use DarwinRebuildVariant::{Build, Switch};
         match self.subcommand {

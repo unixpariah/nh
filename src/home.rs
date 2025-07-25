@@ -14,6 +14,11 @@ use crate::update::update;
 use crate::util::{get_hostname, print_dix_diff};
 
 impl interface::HomeArgs {
+    /// Run the `home` subcommand.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails.
     pub fn run(self) -> Result<()> {
         use HomeRebuildVariant::{Build, Switch};
         match self.subcommand {
