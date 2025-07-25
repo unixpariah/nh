@@ -34,7 +34,19 @@ type GenerationsTagged = BTreeMap<Generation, ToBeRemoved>;
 type ProfilesTagged = HashMap<PathBuf, GenerationsTagged>;
 
 impl interface::CleanMode {
+    /// Run the clean operation for the selected mode.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any IO, Nix, or environment operation fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the current user's UID cannot be resolved to a user. For
+    /// example, if  `User::from_uid(uid)` returns `None`.
     pub fn run(&self) -> Result<()> {
+        use owo_colors::OwoColorize;
+
         let mut profiles = Vec::new();
         let mut gcroots_tagged: HashMap<PathBuf, ToBeRemoved> = HashMap::new();
         let now = SystemTime::now();
@@ -224,7 +236,6 @@ impl interface::CleanMode {
         }
 
         // Present the user the information about the paths to clean
-        use owo_colors::OwoColorize;
         println!();
         println!("{}", "Welcome to nh clean".bold());
         println!("Keeping {} generation(s)", args.keep.green());
