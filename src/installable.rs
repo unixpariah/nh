@@ -4,6 +4,7 @@ use std::{env, fs};
 use clap::error::ErrorKind;
 use clap::{Arg, ArgAction, Args, FromArgMatches};
 use color_eyre::owo_colors::OwoColorize;
+use tracing::debug;
 
 // Reference: https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix
 
@@ -75,102 +76,49 @@ impl FromArgMatches for Installable {
             });
         }
 
-        // env var fallbacks
+        // Env var parsing & fallbacks
+        fn parse_flake_env(var: &str) -> Option<Installable> {
+            env::var(var).ok().map(|f| {
+                let mut elems = f.splitn(2, '#');
+                Installable::Flake {
+                    reference: elems.next().unwrap().to_owned(),
+                    attribute: parse_attribute(
+                        elems
+                            .next()
+                            .map(std::string::ToString::to_string)
+                            .unwrap_or_default(),
+                    ),
+                }
+            })
+        }
 
-        // Check for command-specific flake env vars first
+        // Command-specific flake env vars
         if let Ok(subcommand) = env::var("NH_CURRENT_COMMAND") {
-            if subcommand == "os" {
-                if let Ok(f) = env::var("NH_OS_FLAKE") {
-                    let mut elems = f.splitn(2, '#');
-                    return Ok(Self::Flake {
-                        reference: elems.next().unwrap().to_owned(),
-                        attribute: parse_attribute(
-                            elems
-                                .next()
-                                .map(std::string::ToString::to_string)
-                                .unwrap_or_default(),
-                        ),
-                    });
-                }
-            } else if subcommand == "home" {
-                if let Ok(f) = env::var("NH_HOME_FLAKE") {
-                    let mut elems = f.splitn(2, '#');
-                    return Ok(Self::Flake {
-                        reference: elems.next().unwrap().to_owned(),
-                        attribute: parse_attribute(
-                            elems
-                                .next()
-                                .map(std::string::ToString::to_string)
-                                .unwrap_or_default(),
-                        ),
-                    });
-                }
-            } else if subcommand == "darwin" {
-                if let Ok(f) = env::var("NH_DARWIN_FLAKE") {
-                    let mut elems = f.splitn(2, '#');
-                    return Ok(Self::Flake {
-                        reference: elems.next().unwrap().to_owned(),
-                        attribute: parse_attribute(
-                            elems
-                                .next()
-                                .map(std::string::ToString::to_string)
-                                .unwrap_or_default(),
-                        ),
-                    });
+            debug!("Current subcommand: {subcommand:?}");
+            let env_var = match subcommand.as_str() {
+                "os" => "NH_OS_FLAKE",
+                "home" => "NH_HOME_FLAKE",
+                "darwin" => "NH_DARWIN_FLAKE",
+                _ => "",
+            };
+
+            if !env_var.is_empty() {
+                if let Some(installable) = parse_flake_env(env_var) {
+                    return Ok(installable);
                 }
             }
         }
 
-        if let Ok(f) = env::var("NH_FLAKE") {
-            let mut elems = f.splitn(2, '#');
-            return Ok(Self::Flake {
-                reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(
-                    elems
-                        .next()
-                        .map(std::string::ToString::to_string)
-                        .unwrap_or_default(),
-                ),
-            });
-        }
-
-        if let Ok(f) = env::var("NH_OS_FLAKE") {
-            let mut elems = f.splitn(2, '#');
-            return Ok(Self::Flake {
-                reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(
-                    elems
-                        .next()
-                        .map(std::string::ToString::to_string)
-                        .unwrap_or_default(),
-                ),
-            });
-        }
-
-        if let Ok(f) = env::var("NH_HOME_FLAKE") {
-            let mut elems = f.splitn(2, '#');
-            return Ok(Self::Flake {
-                reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(
-                    elems
-                        .next()
-                        .map(std::string::ToString::to_string)
-                        .unwrap_or_default(),
-                ),
-            });
-        }
-
-        if let Ok(f) = env::var("NH_DARWIN_FLAKE") {
-            let mut elems = f.splitn(2, '#');
-            return Ok(Self::Flake {
-                reference: elems.next().unwrap().to_owned(),
-                attribute: parse_attribute(
-                    elems
-                        .next()
-                        .map(std::string::ToString::to_string)
-                        .unwrap_or_default(),
-                ),
-            });
+        // General flake env fallbacks
+        for var in &[
+            "NH_FLAKE",
+            "NH_OS_FLAKE",
+            "NH_HOME_FLAKE",
+            "NH_DARWIN_FLAKE",
+        ] {
+            if let Some(installable) = parse_flake_env(var) {
+                return Ok(installable);
+            }
         }
 
         if let Ok(f) = env::var("NH_FILE") {
