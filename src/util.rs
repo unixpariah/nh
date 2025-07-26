@@ -92,8 +92,18 @@ static VERSION_REGEX: LazyLock<Regex> =
 /// * `String` - The normalized version string suitable for semver parsing
 pub fn normalize_version_string(version: &str) -> String {
     if let Some(captures) = VERSION_REGEX.captures(version) {
-        let major = captures.get(1).unwrap().as_str();
-        let minor = captures.get(2).unwrap().as_str();
+        let major = if let Some(m) = captures.get(1) {
+            m.as_str()
+        } else {
+            debug!("Failed to extract major version from '{}'", version);
+            return version.to_string();
+        };
+        let minor = if let Some(m) = captures.get(2) {
+            m.as_str()
+        } else {
+            debug!("Failed to extract minor version from '{}'", version);
+            return version.to_string();
+        };
         let patch = captures.get(3).map_or("0", |m| m.as_str());
 
         let normalized = format!("{major}.{minor}.{patch}");
