@@ -67,7 +67,8 @@ pub fn get_nix_variant() -> &'static NixVariant {
         .expect("NIX_VARIANT should be initialized by get_nix_variant")
 }
 
-// Static regex compiled once for version string normalization
+// Matches and captures major, minor, and optional patch numbers from semantic
+// version strings, optionally followed by a "pre" pre-release suffix.
 static VERSION_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(\d+)\.(\d+)(?:\.(\d+))?(?:pre\d*)?").unwrap());
 
@@ -92,18 +93,14 @@ static VERSION_REGEX: LazyLock<Regex> =
 /// * `String` - The normalized version string suitable for semver parsing
 pub fn normalize_version_string(version: &str) -> String {
     if let Some(captures) = VERSION_REGEX.captures(version) {
-        let major = if let Some(m) = captures.get(1) {
-            m.as_str()
-        } else {
+        let major = captures.get(1).map(|m| m.as_str()).unwrap_or_else(|| {
             debug!("Failed to extract major version from '{}'", version);
-            return version.to_string();
-        };
-        let minor = if let Some(m) = captures.get(2) {
-            m.as_str()
-        } else {
+            version
+        });
+        let minor = captures.get(2).map(|m| m.as_str()).unwrap_or_else(|| {
             debug!("Failed to extract minor version from '{}'", version);
-            return version.to_string();
-        };
+            version
+        });
         let patch = captures.get(3).map_or("0", |m| m.as_str());
 
         let normalized = format!("{major}.{minor}.{patch}");
@@ -121,11 +118,10 @@ pub fn normalize_version_string(version: &str) -> String {
         .unwrap_or(version);
 
     // Version should have all three components (major.minor.patch)
-    let parts: Vec<&str> = base_version.split('.').collect();
-    let normalized = match parts.len() {
-        1 => format!("{}.0.0", parts[0]),            // "1" -> "1.0.0"
-        2 => format!("{}.{}.0", parts[0], parts[1]), // "1.2" -> "1.2.0"
-        _ => base_version.to_string(),               // "1.2.3" or more parts, use as-is
+    let normalized = match base_version.split('.').collect::<Vec<_>>().as_slice() {
+        [major] => format!("{major}.0.0"),
+        [major, minor] => format!("{major}.{minor}.0"),
+        _ => base_version.to_string(),
     };
 
     if version != normalized {
@@ -210,8 +206,10 @@ pub fn get_hostname() -> Result<String> {
         Ok(hostname::get()
             .context("Failed to get hostname")?
             .to_str()
-            .unwrap()
-            .to_string())
+            .map_or_else(
+                || String::from("unknown-hostname"),
+                std::string::ToString::to_string,
+            ))
     }
     #[cfg(target_os = "macos")]
     {
