@@ -46,7 +46,7 @@ impl DarwinRebuildArgs {
     fn rebuild(self, variant: &DarwinRebuildVariant) -> Result<()> {
         use DarwinRebuildVariant::{Build, Switch};
 
-        if nix::unistd::Uid::effective().is_root() {
+        if nix::unistd::Uid::effective().is_root() && !self.bypass_root_check {
             bail!("Don't run nh os as root. I will call sudo internally as needed");
         }
 

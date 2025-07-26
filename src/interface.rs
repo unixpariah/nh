@@ -595,6 +595,10 @@ pub struct DarwinRebuildArgs {
     /// Extra arguments passed to nix build
     #[arg(last = true)]
     pub extra_args: Vec<String>,
+
+    /// Don't panic if calling nh as root
+    #[arg(short = 'R', long, env = "NH_BYPASS_ROOT_CHECK")]
+    pub bypass_root_check: bool,
 }
 
 impl DarwinRebuildArgs {
