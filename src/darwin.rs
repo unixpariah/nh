@@ -129,11 +129,14 @@ impl DarwinRebuildArgs {
         );
 
         // Compare changes between current and target generation
-        match self.common.diff {
-            DiffType::Never => {}
-            _ => {
-                let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
-            }
+        if matches!(self.common.diff, DiffType::Never) {
+            debug!("Not running dix as the --diff flag is set to never.");
+        } else {
+            debug!(
+                "Comparing with target profile: {}",
+                target_profile.display()
+            );
+            let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
         }
 
         if self.common.ask && !self.common.dry && !matches!(variant, Build) {

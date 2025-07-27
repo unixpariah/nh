@@ -64,6 +64,7 @@ impl OsBuildVmArgs {
 
 impl OsRebuildArgs {
     // final_attr is the attribute of config.system.build.X to evaluate.
+    #[expect(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn rebuild(self, variant: &OsRebuildVariant, final_attr: Option<String>) -> Result<()> {
         use OsRebuildVariant::{Boot, Build, BuildVm, Switch, Test};
 
@@ -202,26 +203,29 @@ impl OsRebuildArgs {
             ));
         }
 
-        if system_hostname.is_none_or(|h| h == target_hostname) {
-            debug!(
-                "Comparing with target profile: {}",
-                target_profile.display()
-            );
-
-            // Compare changes between current and target generation
-            match self.common.diff {
-                DiffType::Never => {}
-                DiffType::Auto => {
-                    if self.target_host.is_none() && self.build_host.is_none() {
-                        let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
-                    }
-                }
-                DiffType::Always => {
+        match self.common.diff {
+            DiffType::Always => {
+                let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
+            }
+            DiffType::Never => {
+                debug!("Not running dix as the --diff flag is set to never.");
+            }
+            DiffType::Auto => {
+                if system_hostname.is_none_or(|h| h == target_hostname)
+                    && self.target_host.is_none()
+                    && self.build_host.is_none()
+                {
+                    debug!(
+                        "Comparing with target profile: {}",
+                        target_profile.display()
+                    );
                     let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &target_profile);
+                } else {
+                    debug!(
+                        "Not running dix as the target hostname is different from the system hostname."
+                    );
                 }
             }
-        } else {
-            debug!("Not running dix as the target hostname is different from the system hostname.");
         }
 
         if self.common.dry || matches!(variant, Build | BuildVm) {
@@ -388,11 +392,14 @@ impl OsRollbackArgs {
         debug!("target_specialisation: {target_specialisation:?}");
 
         // Compare changes between current and target generation
-        match self.diff {
-            DiffType::Never => {}
-            _ => {
-                let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &generation_link);
-            }
+        if matches!(self.diff, DiffType::Never) {
+            debug!("Not running dix as the target hostname is different from the system hostname.");
+        } else {
+            debug!(
+                "Comparing with target profile: {}",
+                generation_link.display()
+            );
+            let _ = print_dix_diff(&PathBuf::from(CURRENT_PROFILE), &generation_link);
         }
 
         if self.dry {
