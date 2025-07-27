@@ -1,4 +1,4 @@
-use clap_verbosity_flag::WarnLevel;
+use clap_verbosity_flag::InfoLevel;
 use owo_colors::OwoColorize;
 use tracing::Event;
 use tracing::Level;
@@ -50,7 +50,7 @@ where
     }
 }
 
-pub fn setup_logging(verbosity: clap_verbosity_flag::Verbosity<WarnLevel>) -> Result<()> {
+pub fn setup_logging(verbosity: clap_verbosity_flag::Verbosity<InfoLevel>) -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .display_location_section(true)
         .panic_section("Please report the bug at https://github.com/nix-community/nh/issues")

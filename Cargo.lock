@@ -394,9 +394,9 @@ dependencies = [
 
 [[package]]
 name = "dix"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c278ec4a1fffd0387eb3374907b909d5b8856246242fedf8d56d880da449c39"
+checksum = "0c0c60265de8ef8b6350f46cc06cb5e7d9f202bba93400a0b9f82432fe5d6f0f"
 dependencies = [
  "anyhow",
  "clap",
@@ -955,7 +955,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1418,7 +1418,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1992,7 +1992,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

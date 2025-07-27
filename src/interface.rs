@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anstyle::Style;
 use clap::ValueEnum;
 use clap::{Args, Parser, Subcommand, builder::Styles};
-use clap_verbosity_flag::WarnLevel;
+use clap_verbosity_flag::InfoLevel;
 
 use crate::Result;
 use crate::checks::{
@@ -41,7 +41,7 @@ pub struct Main {
     #[command(flatten)]
     /// Increase logging verbosity, can be passed multiple times for
     /// more detailed logs.
-    pub verbosity: clap_verbosity_flag::Verbosity<WarnLevel>,
+    pub verbosity: clap_verbosity_flag::Verbosity<InfoLevel>,
 
     #[command(subcommand)]
     pub command: NHCommand,
