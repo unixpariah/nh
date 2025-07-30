@@ -5,10 +5,9 @@ use color_eyre::{
     Result,
     eyre::{Context, bail},
 };
-use owo_colors::OwoColorize;
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::installable::Installable;
 use crate::interface::NixBuildPassthroughArgs;
@@ -336,7 +335,7 @@ impl Command {
         );
 
         if let Some(m) = &self.message {
-            println!("{} {m}", ">".green());
+            info!("{m}");
         }
 
         debug!(?cmd);
@@ -383,7 +382,7 @@ impl Command {
         );
 
         if let Some(m) = &self.message {
-            println!("{} {m}", ">".green());
+            info!("{m}");
         }
 
         debug!(?cmd);
@@ -464,7 +463,7 @@ impl Build {
     /// Returns an error if the build command fails to execute.
     pub fn run(&self) -> Result<()> {
         if let Some(m) = &self.message {
-            println!("{} {m}", ">".green());
+            info!("{m}");
         }
 
         let installable_args = self.installable.to_args();

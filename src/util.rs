@@ -13,7 +13,7 @@ use color_eyre::Result;
 use color_eyre::eyre;
 use regex::Regex;
 use tempfile::TempDir;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::commands::Command;
 
@@ -328,7 +328,7 @@ pub fn print_dix_diff(old_generation: &Path, new_generation: &Path) -> Result<()
         .map_err(|_| eyre::eyre!("Failed to join closure size computation thread"))?
     {
         if size_old == size_new {
-            println!("No version or size changes.");
+            info!("No version or size changes.");
         } else {
             if wrote > 0 {
                 println!();

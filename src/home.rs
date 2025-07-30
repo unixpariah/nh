@@ -134,7 +134,9 @@ impl HomeRebuildArgs {
         // just do nothing for None case (fresh installs)
         if let Some(generation) = prev_generation {
             match self.common.diff {
-                DiffType::Never => {}
+                DiffType::Never => {
+                    debug!("Not running dix as the --diff flag is set to never.");
+                }
                 _ => {
                     let _ = print_dix_diff(&generation, target_profile.get_path());
                 }
