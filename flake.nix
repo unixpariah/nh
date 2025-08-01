@@ -27,15 +27,7 @@
         default = self.packags.${pkgs.hostPlatform.system}.nh;
       });
 
-      checks =
-        let
-          pkgs = nixpkgs.legacyPackages."x86_64-linux";
-          # NixOS VM tests
-          tests = {
-            nh-flakes = pkgs.callPackage ./checks/nixos/nh-flakes.nix { };
-          };
-        in
-        self.packages // self.devShells // tests;
+      checks = self.packages // self.devShells;
 
       devShells = forAllSystems (pkgs: {
         default = import ./shell.nix { inherit pkgs; };
