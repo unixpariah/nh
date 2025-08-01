@@ -241,7 +241,10 @@ impl Command {
                 .stdout(Redirection::Pipe)
                 .capture()
                 .map(|output| output.stdout_str().contains("--preserve-env"))
-                .unwrap_or(false);
+                .unwrap_or_else(|e| {
+                    debug!("Failed to check sudo --help: {}", e);
+                    false
+                });
 
             if has_preserve_env && !preserve_vars.is_empty() {
                 cmd = cmd.args(&[
@@ -276,13 +279,13 @@ impl Command {
 
     /// Create a sudo command for self-elevation with proper environment handling
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the current executable path cannot be determined.
-    #[must_use]
-    pub fn self_elevate_cmd() -> std::process::Command {
+    /// Returns an error if the current executable path cannot be determined or sudo command cannot be built.
+    pub fn self_elevate_cmd() -> Result<std::process::Command> {
         // Get the current executable path
-        let current_exe = std::env::current_exe().expect("Failed to get current executable path");
+        let current_exe =
+            std::env::current_exe().context("Failed to get current executable path")?;
 
         // Self-elevation with proper environment handling
         let cmd_builder = Self::new(&current_exe).elevate(true).with_required_env();
@@ -298,14 +301,16 @@ impl Command {
         let cmdline = final_exec.to_cmdline_lossy();
         let parts: Vec<&str> = cmdline.split_whitespace().collect();
 
-        assert!(!parts.is_empty(), "Failed to build sudo command");
+        if parts.is_empty() {
+            bail!("Failed to build sudo command");
+        }
 
         let mut std_cmd = std::process::Command::new(parts[0]);
         if parts.len() > 1 {
             std_cmd.args(&parts[1..]);
         }
 
-        std_cmd
+        Ok(std_cmd)
     }
 
     /// Run the configured command.
@@ -349,16 +354,14 @@ impl Command {
             .clone()
             .unwrap_or_else(|| "Command failed".to_string());
         let res = cmd.capture();
-        if let Err(e) = res {
-            return Err(e).wrap_err(msg);
-        }
+        let capture = match res {
+            Ok(ref c) => c,
+            Err(e) => return Err(e).wrap_err(msg),
+        };
 
-        let status = &res.as_ref().unwrap().exit_status;
+        let status = &capture.exit_status;
         if !status.success() {
-            let stderr = res
-                .as_ref()
-                .map(subprocess::CaptureData::stderr_str)
-                .unwrap_or_default();
+            let stderr = capture.stderr_str();
             if stderr.trim().is_empty() {
                 bail!("{} (exit status {:?})", msg, status);
             }
