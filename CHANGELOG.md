@@ -39,6 +39,12 @@ functionality, under the "Removed" section.
 - nh's verbosity flag can now be passed multiple times for more verbose debug
   output.
 - `nh search` will now use the system trust store for it's HTTPS requests.
+- Error handling has been improved across the board, with more contextful errors
+  replacing direct error propagation or unwraps.
+- The directory traversal during `nh clean` has been improved slightly and
+  relevant bits of the clean module has been sped up.
+  - It's roughly %4 faster according to testing, but IO is still a limiting
+    factor and results may differ.
 
 ### Fixed
 

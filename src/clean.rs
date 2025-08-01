@@ -14,12 +14,20 @@ use nix::{
 };
 use regex::Regex;
 use tracing::{Level, debug, info, instrument, span, warn};
-use uzers::os::unix::UserExt;
 
 use crate::{Result, commands::Command, interface};
 
 // Nix impl:
 // https://github.com/NixOS/nix/blob/master/src/nix-collect-garbage/nix-collect-garbage.cc
+
+static DIRENV_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r".*/.direnv/.*").expect("Failed to compile direnv regex"));
+
+static RESULT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r".*result.*").expect("Failed to compile result regex"));
+
+static GENERATION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(.*)-(\d+)-link$").expect("Failed to compile generation regex"));
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct Generation {
@@ -32,6 +40,21 @@ type ToBeRemoved = bool;
 // BTreeMap to automatically sort generations by id
 type GenerationsTagged = BTreeMap<Generation, ToBeRemoved>;
 type ProfilesTagged = HashMap<PathBuf, GenerationsTagged>;
+
+/// Filter paths to only include existing directories, logging warnings for missing ones
+fn filter_existing_dirs<I>(paths: I) -> impl Iterator<Item = PathBuf>
+where
+    I: IntoIterator<Item = PathBuf>,
+{
+    paths.into_iter().filter_map(|path| {
+        if path.is_dir() {
+            Some(path)
+        } else {
+            warn!("Profiles directory not found, skipping: {}", path.display());
+            None
+        }
+    })
+}
 
 impl interface::CleanMode {
     /// Run the clean operation for the selected mode.
@@ -70,49 +93,47 @@ impl interface::CleanMode {
                     PathBuf::from("/nix/var/nix/profiles/per-user"),
                 ];
 
-                profiles.extend(
-                    paths_to_check
-                        .into_iter()
-                        .inspect(|path| {
-                            if !path.is_dir() {
-                                warn!("Profiles directory not found, skipping: {}", path.display());
-                            }
-                        })
-                        .filter(|path| path.is_dir())
-                        .flat_map(|path| {
-                            if path.ends_with("per-user") {
-                                path.read_dir()
-                                    .map(|read_dir| {
-                                        read_dir
-                                            .filter_map(std::result::Result::ok)
-                                            .map(|entry| entry.path())
-                                            .filter(|path| path.is_dir())
-                                            .flat_map(profiles_in_dir)
-                                            .collect::<Vec<_>>()
-                                    })
-                                    .unwrap_or_default()
-                            } else {
-                                profiles_in_dir(path)
-                            }
-                        }),
-                );
+                profiles.extend(filter_existing_dirs(paths_to_check).flat_map(|path| {
+                    if path.ends_with("per-user") {
+                        path.read_dir()
+                            .map(|read_dir| {
+                                read_dir
+                                    .filter_map(std::result::Result::ok)
+                                    .map(|entry| entry.path())
+                                    .filter(|path| path.is_dir())
+                                    .flat_map(profiles_in_dir)
+                                    .collect::<Vec<_>>()
+                            })
+                            .unwrap_or_default()
+                    } else {
+                        profiles_in_dir(path)
+                    }
+                }));
 
                 // Most unix systems start regular users at uid 1000+, but macos is special at 501+
                 // https://en.wikipedia.org/wiki/User_identifier
                 let uid_min = if cfg!(target_os = "macos") { 501 } else { 1000 };
                 let uid_max = uid_min + 100;
-                debug!("Scanning XDG profiles for users 0, ${uid_min}-${uid_max}");
-                for user in unsafe { uzers::all_users() } {
-                    if user.uid() >= uid_min && user.uid() < uid_max || user.uid() == 0 {
+                debug!("Scanning XDG profiles for users 0, {uid_min}-{uid_max}");
+
+                // Check root user (uid 0)
+                if let Some(user) = nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(0))? {
+                    debug!(?user, "Adding XDG profiles for root user");
+                    let user_profiles_path = user.dir.join(".local/state/nix/profiles");
+                    if user_profiles_path.is_dir() {
+                        profiles.extend(profiles_in_dir(user_profiles_path));
+                    }
+                }
+
+                // Check regular users in the expected range
+                for uid in uid_min..uid_max {
+                    if let Some(user) =
+                        nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(uid))?
+                    {
                         debug!(?user, "Adding XDG profiles for user");
-                        let user_profiles_path = user.home_dir().join(".local/state/nix/profiles");
+                        let user_profiles_path = user.dir.join(".local/state/nix/profiles");
                         if user_profiles_path.is_dir() {
                             profiles.extend(profiles_in_dir(user_profiles_path));
-                        } else {
-                            warn!(
-                                "Profiles directory not found, skipping: {}",
-                                user_profiles_path.display()
-                            );
                         }
                     }
                 }
@@ -122,7 +143,8 @@ impl interface::CleanMode {
                 if uid.is_root() {
                     bail!("nh clean user: don't run me as root!");
                 }
-                let user = nix::unistd::User::from_uid(uid)?.unwrap();
+                let user = nix::unistd::User::from_uid(uid)?
+                    .ok_or_else(|| eyre!("User not found for uid {}", uid))?;
                 let home_dir = PathBuf::from(std::env::var("HOME")?);
 
                 let paths_to_check = [
@@ -130,17 +152,7 @@ impl interface::CleanMode {
                     PathBuf::from("/nix/var/nix/profiles/per-user").join(&user.name),
                 ];
 
-                profiles.extend(
-                    paths_to_check
-                        .into_iter()
-                        .inspect(|path| {
-                            if !path.is_dir() {
-                                warn!("Profiles directory not found, skipping: {}", path.display());
-                            }
-                        })
-                        .filter(|path| path.is_dir())
-                        .flat_map(profiles_in_dir),
-                );
+                profiles.extend(filter_existing_dirs(paths_to_check).flat_map(profiles_in_dir));
 
                 if profiles.is_empty() {
                     warn!(
@@ -162,11 +174,7 @@ impl interface::CleanMode {
         }
 
         // Query gcroots
-        let filename_tests = [r".*/.direnv/.*", r".*result.*"];
-        let regexes = filename_tests
-            .into_iter()
-            .map(Regex::new)
-            .collect::<Result<Vec<_>, regex::Error>>()?;
+        let regexes = [&*DIRENV_REGEX, &*RESULT_REGEX];
 
         if !is_profile_clean && !args.nogcroots {
             for elem in PathBuf::from("/nix/var/nix/gcroots/auto")
@@ -253,7 +261,7 @@ impl interface::CleanMode {
                     .bold()
             );
             for re in regexes {
-                println!("- {}  {}", "RE".purple(), re);
+                println!("- {}  {}", "RE".purple(), re.as_str());
             }
             for (path, tbr) in &gcroots_tagged {
                 if *tbr {
@@ -321,20 +329,19 @@ fn profiles_in_dir<P: AsRef<Path> + fmt::Debug>(dir: P) -> Vec<PathBuf> {
 
     match dir.read_dir() {
         Ok(read_dir) => {
-            static GENERATION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-                Regex::new(r"^(.*)-(\d+)-link$").expect("Failed to compile generation regex")
-            });
-
             for entry in read_dir {
                 match entry {
                     Ok(e) => {
                         let path = e.path();
 
                         if let Ok(dst) = path.read_link() {
-                            let name = dst
-                                .file_name()
-                                .expect("Failed to get filename")
-                                .to_string_lossy();
+                            let name = match dst.file_name() {
+                                Some(f) => f.to_string_lossy(),
+                                None => {
+                                    warn!("Failed to get filename for {:?}", dst);
+                                    continue;
+                                }
+                            };
 
                             if GENERATION_REGEX.captures(&name).is_some() {
                                 res.push(path);
@@ -365,9 +372,7 @@ fn cleanable_generations(
         .file_name()
         .context("Checking profile's name")?
         .to_str()
-        .unwrap();
-
-    let generation_regex = Regex::new(&format!(r"^{name}-(\d+)-link"))?;
+        .context("Profile name is not valid UTF-8")?;
 
     let mut result = GenerationsTagged::new();
 
@@ -378,10 +383,20 @@ fn cleanable_generations(
         .context("Reading profile's generations")?
     {
         let path = entry?.path();
-        let captures = generation_regex.captures(path.file_name().unwrap().to_str().unwrap());
+        let captures = {
+            let file_name = path.file_name().context("Failed to get filename")?;
+            let file_name_str = file_name.to_str().context("Filename is not valid UTF-8")?;
+            GENERATION_REGEX.captures(file_name_str)
+        };
 
         if let Some(caps) = captures {
-            if let Some(number) = caps.get(1) {
+            // Check if this generation belongs to the current profile
+            if let Some(profile_name) = caps.get(1) {
+                if profile_name.as_str() != name {
+                    continue;
+                }
+            }
+            if let Some(number) = caps.get(2) {
                 let last_modified = path
                     .symlink_metadata()
                     .context("Checking symlink metadata")?
@@ -390,9 +405,12 @@ fn cleanable_generations(
 
                 result.insert(
                     Generation {
-                        number: number.as_str().parse().unwrap(),
+                        number: number
+                            .as_str()
+                            .parse()
+                            .context("Failed to parse generation number")?,
                         last_modified,
-                        path: path.clone(),
+                        path,
                     },
                     true,
                 );
