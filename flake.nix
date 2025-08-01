@@ -29,10 +29,11 @@
 
       checks =
         let
+          pkgs = nixpkgs.legacyPackages."x86_64-linux";
           # NixOS VM tests
-          tests = forAllSystems (pkgs: {
+          tests = {
             nh-flakes = pkgs.callPackage ./checks/nixos/nh-flakes.nix { };
-          });
+          };
         in
         self.packages // self.devShells // tests;
 
