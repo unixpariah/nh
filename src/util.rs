@@ -293,7 +293,8 @@ pub fn get_missing_experimental_features(required_features: &[&str]) -> Result<V
 pub fn self_elevate() -> ! {
     use std::os::unix::process::CommandExt;
 
-    let mut cmd = crate::commands::Command::self_elevate_cmd();
+    let mut cmd = crate::commands::Command::self_elevate_cmd()
+        .expect("Failed to create self-elevation command");
     debug!("{:?}", cmd);
     let err = cmd.exec();
     panic!("{}", err);
