@@ -6,9 +6,9 @@ cargo fix --allow-dirty
 
 echo "Running clippy linter and applying available fixes"
 cargo clippy --fix --allow-dirty -- -W clippy::pedantic \
-	-W clippy::correctness \
-	-W clippy::suspicious \
-	-W clippy::cargo
+  -W clippy::correctness \
+  -W clippy::suspicious \
+  -W clippy::cargo
 
 echo "Running Rust formatter"
 cargo fmt
