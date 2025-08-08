@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use color_eyre::eyre::{Context, bail};
+use color_eyre::eyre::{Context, bail, eyre};
 use tracing::{debug, info, warn};
 
 use crate::Result;
@@ -71,7 +71,10 @@ impl DarwinRebuildArgs {
             debug!("Using NH_DARWIN_FLAKE: {}", darwin_flake);
 
             let mut elems = darwin_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = match elems.next() {
+                Some(r) => r.to_owned(),
+                None => return Err(eyre!("NH_DARWIN_FLAKE missing reference part")),
+            };
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)
@@ -200,7 +203,10 @@ impl DarwinReplArgs {
             debug!("Using NH_DARWIN_FLAKE: {}", darwin_flake);
 
             let mut elems = darwin_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = match elems.next() {
+                Some(r) => r.to_owned(),
+                None => return Err(eyre!("NH_DARWIN_FLAKE missing reference part")),
+            };
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)

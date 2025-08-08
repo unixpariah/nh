@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use color_eyre::Result;
-use color_eyre::eyre::{Context, bail};
+use color_eyre::eyre::{Context, bail, eyre};
 use tracing::{debug, info, warn};
 
 use crate::commands;
@@ -63,7 +63,10 @@ impl HomeRebuildArgs {
             debug!("Using NH_HOME_FLAKE: {}", home_flake);
 
             let mut elems = home_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = match elems.next() {
+                Some(r) => r.to_owned(),
+                None => return Err(eyre!("NH_HOME_FLAKE missing reference part")),
+            };
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)
@@ -96,9 +99,9 @@ impl HomeRebuildArgs {
 
         let prev_generation: Option<PathBuf> = [
             PathBuf::from("/nix/var/nix/profiles/per-user")
-                .join(env::var("USER").expect("Couldn't get username"))
+                .join(env::var("USER").map_err(|_| eyre!("Couldn't get username"))?)
                 .join("home-manager"),
-            PathBuf::from(env::var("HOME").expect("Couldn't get home directory"))
+            PathBuf::from(env::var("HOME").map_err(|_| eyre!("Couldn't get home directory"))?)
                 .join(".local/state/nix/profiles/home-manager"),
         ]
         .into_iter()
@@ -109,7 +112,13 @@ impl HomeRebuildArgs {
         let spec_location =
             PathBuf::from(std::env::var("HOME")?).join(".local/share/home-manager/specialisation");
 
-        let current_specialisation = std::fs::read_to_string(spec_location.to_str().unwrap()).ok();
+        let current_specialisation = match spec_location.to_str() {
+            Some(s) => std::fs::read_to_string(s).ok(),
+            None => {
+                tracing::warn!("spec_location path is not valid UTF-8");
+                None
+            }
+        };
 
         let target_specialisation = if self.no_specialisation {
             None
@@ -278,7 +287,7 @@ where
 
             // If no explicit config was found via flag, try automatic detection
             if !found_config {
-                let username = std::env::var("USER").expect("Couldn't get username");
+                let username = std::env::var("USER").map_err(|_| eyre!("Couldn't get username"))?;
                 let hostname = get_hostname()?;
                 let mut tried = vec![];
 
@@ -367,7 +376,10 @@ impl HomeReplArgs {
             debug!("Using NH_HOME_FLAKE: {home_flake}");
 
             let mut elems = home_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = match elems.next() {
+                Some(r) => r.to_owned(),
+                None => return Err(eyre!("NH_HOME_FLAKE missing reference part")),
+            };
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)
