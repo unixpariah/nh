@@ -242,19 +242,26 @@ impl Command {
             }
         }
 
-        // Platform-specific handling for preserve-env
+        // Platform-agnostic handling for preserve-env
         if !preserve_vars.is_empty() {
-            if cfg!(target_os = "macos") {
-                // Check for if sudo has the preserve-env flag
-                // NOTE: This previously parsed sudo --help output, which is brittle.
-                // Now we assume modern sudo supports --preserve-env.
-                cmd = cmd.args(&[
-                    "--set-home",
-                    &format!("--preserve-env={}", preserve_vars.join(",")),
-                ]);
-            } else {
-                // On Linux, use specific environment preservation
-                cmd = cmd.arg(format!("--preserve-env={}", preserve_vars.join(",")));
+            // NH_SUDO_PRESERVE_ENV: set to "0" to disable --preserve-env, "1" to force, unset defaults to force
+            let preserve_env_override = std::env::var("NH_SUDO_PRESERVE_ENV").ok();
+            match preserve_env_override.as_deref() {
+                Some("0") => {
+                    cmd = cmd.arg("--set-home");
+                }
+                Some("1") | None => {
+                    cmd = cmd.args(&[
+                        "--set-home",
+                        &format!("--preserve-env={}", preserve_vars.join(",")),
+                    ]);
+                }
+                _ => {
+                    cmd = cmd.args(&[
+                        "--set-home",
+                        &format!("--preserve-env={}", preserve_vars.join(",")),
+                    ]);
+                }
             }
         } else if cfg!(target_os = "macos") {
             cmd = cmd.arg("--set-home");
