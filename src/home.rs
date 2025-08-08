@@ -56,7 +56,7 @@ impl HomeRebuildArgs {
             }),
         };
 
-        debug!(?out_path);
+        debug!("Output path: {out_path:?}");
 
         // Use NH_HOME_FLAKE if available, otherwise use the provided installable
         let installable = if let Ok(home_flake) = env::var("NH_HOME_FLAKE") {
@@ -104,7 +104,7 @@ impl HomeRebuildArgs {
         .into_iter()
         .find(|next| next.exists());
 
-        debug!(?prev_generation);
+        debug!("Previous generation: {prev_generation:?}");
 
         let spec_location =
             PathBuf::from(std::env::var("HOME")?).join(".local/share/home-manager/specialisation");
@@ -250,11 +250,13 @@ where
                     ))?;
 
                 if check_res.map(|s| s.trim().to_owned()).as_deref() == Some("true") {
-                    debug!("Using explicit configuration from flag: {}", config_name);
+                    debug!("Using explicit configuration from flag: {config_name:?}");
+
                     attribute.push(config_name);
                     if push_drv {
                         attribute.extend(toplevel.clone());
                     }
+
                     found_config = true;
                 } else {
                     // Explicit config provided but not found
@@ -362,7 +364,7 @@ impl HomeReplArgs {
     fn run(self) -> Result<()> {
         // Use NH_HOME_FLAKE if available, otherwise use the provided installable
         let installable = if let Ok(home_flake) = env::var("NH_HOME_FLAKE") {
-            debug!("Using NH_HOME_FLAKE: {}", home_flake);
+            debug!("Using NH_HOME_FLAKE: {home_flake}");
 
             let mut elems = home_flake.splitn(2, '#');
             let reference = elems.next().unwrap().to_owned();

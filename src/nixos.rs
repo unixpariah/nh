@@ -128,14 +128,17 @@ impl OsRebuildArgs {
             },
         };
 
-        debug!(?out_path);
+        debug!("Output path: {out_path:?}");
 
         // Use NH_OS_FLAKE if available, otherwise use the provided installable
         let installable = if let Ok(os_flake) = env::var("NH_OS_FLAKE") {
             debug!("Using NH_OS_FLAKE: {}", os_flake);
 
             let mut elems = os_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = elems
+                .next()
+                .ok_or_else(|| eyre!("NH_OS_FLAKE missing reference part"))?
+                .to_owned();
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)
@@ -179,7 +182,7 @@ impl OsRebuildArgs {
             current_specialisation.or_else(|| self.specialisation.clone())
         };
 
-        debug!("target_specialisation: {target_specialisation:?}");
+        debug!("Target specialisation: {target_specialisation:?}");
 
         let target_profile = match &target_specialisation {
             None => out_path.get_path().to_owned(),
@@ -250,7 +253,10 @@ impl OsRebuildArgs {
                     "copy",
                     "--to",
                     format!("ssh://{target_host}").as_str(),
-                    target_profile.to_str().unwrap(),
+                    match target_profile.to_str() {
+                        Some(s) => s,
+                        None => return Err(eyre!("target_profile path is not valid UTF-8")),
+                    },
                 ])
                 .message("Copying configuration to target")
                 .with_required_env()
@@ -263,15 +269,14 @@ impl OsRebuildArgs {
 
             if !switch_to_configuration.exists() {
                 return Err(eyre!(
-                    "The 'switch-to-configuration binary' is missing from the built configuration.\n
-
-                    This typically happens when system.switch.enable is set to false in your
-                    NixOS configuration. To fix this, please either:\n\
-                    1. Remove 'system.switch.enable = false' from your configuration, or\n\
-                    2. Set 'system.switch.enable = true' explicitly\n
-
-                    If the problem persists, please open an issue on our issue tracker!
-                    "
+                    "The 'switch-to-configuration' binary is missing from the built configuration.\n\
+         \n\
+         This typically happens when 'system.switch.enable' is set to false in your\n\
+         NixOS configuration. To fix this, please either:\n\
+         1. Remove 'system.switch.enable = false' from your configuration, or\n\
+         2. Set 'system.switch.enable = true' explicitly\n\
+         \n\
+         If the problem persists, please open an issue on our issue tracker!"
                 ));
             }
 
@@ -315,11 +320,14 @@ impl OsRebuildArgs {
 
             if !switch_to_configuration.exists() {
                 return Err(eyre!(
-                    "The switch-to-configuration binary is missing from the built configuration.\n\
-                    This typically happens when system.switch.enable is set to false in your NixOS configuration.\n\
-                    To fix this, either:\n\
-                    1. Remove 'system.switch.enable = false;' from your configuration, or\n\
-                    2. Set 'system.switch.enable = true;' explicitly"
+                    "The 'switch-to-configuration' binary is missing from the built configuration.\n\
+         \n\
+         This typically happens when 'system.switch.enable' is set to false in your\n\
+         NixOS configuration. To fix this, please either:\n\
+         1. Remove 'system.switch.enable = false' from your configuration, or\n\
+         2. Set 'system.switch.enable = true' explicitly\n\
+         \n\
+         If the problem persists, please open an issue on our issue tracker!"
                 ));
             }
 
@@ -375,9 +383,10 @@ impl OsRollbackArgs {
         info!("Rolling back to generation {}", target_generation.number);
 
         // Construct path to the generation
-        let profile_dir = Path::new(SYSTEM_PROFILE)
-            .parent()
-            .unwrap_or(Path::new("/nix/var/nix/profiles"));
+        let profile_dir = Path::new(SYSTEM_PROFILE).parent().unwrap_or_else(|| {
+            tracing::warn!("SYSTEM_PROFILE has no parent, defaulting to /nix/var/nix/profiles");
+            Path::new("/nix/var/nix/profiles")
+        });
         let generation_link = profile_dir.join(format!("system-{}-link", target_generation.number));
 
         // Handle specialisations
@@ -467,11 +476,14 @@ impl OsRollbackArgs {
 
         if !switch_to_configuration.exists() {
             return Err(eyre!(
-                "The switch-to-configuration binary is missing from the built configuration.\n\
-                    This typically happens when system.switch.enable is set to false in your NixOS configuration.\n\
-                    To fix this, either:\n\
-                    1. Remove 'system.switch.enable = false;' from your configuration, or\n\
-                    2. Set 'system.switch.enable = true;' explicitly"
+                "The 'switch-to-configuration' binary is missing from the built configuration.\n\
+         \n\
+         This typically happens when 'system.switch.enable' is set to false in your\n\
+         NixOS configuration. To fix this, please either:\n\
+         1. Remove 'system.switch.enable = false' from your configuration, or\n\
+         2. Set 'system.switch.enable = true' explicitly\n\
+         \n\
+         If the problem persists, please open an issue on our issue tracker!"
             ));
         }
 
@@ -671,7 +683,10 @@ impl OsReplArgs {
             debug!("Using NH_OS_FLAKE: {}", os_flake);
 
             let mut elems = os_flake.splitn(2, '#');
-            let reference = elems.next().unwrap().to_owned();
+            let reference = match elems.next() {
+                Some(r) => r.to_owned(),
+                None => return Err(eyre!("NH_OS_FLAKE missing reference part")),
+            };
             let attribute = elems
                 .next()
                 .map(crate::installable::parse_attribute)
