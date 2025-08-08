@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 
 use color_eyre::{
     Result,
-    eyre::{Context, bail},
+    eyre::{self, Context, bail},
 };
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
@@ -354,21 +354,23 @@ impl Command {
             .clone()
             .unwrap_or_else(|| "Command failed".to_string());
         let res = cmd.capture();
-        let capture = match res {
-            Ok(ref c) => c,
-            Err(e) => return Err(e).wrap_err(msg),
-        };
-
-        let status = &capture.exit_status;
-        if !status.success() {
-            let stderr = capture.stderr_str();
-            if stderr.trim().is_empty() {
-                bail!("{} (exit status {:?})", msg, status);
+        match res {
+            Ok(capture) => {
+                let status = &capture.exit_status;
+                if !status.success() {
+                    let stderr = capture.stderr_str();
+                    if stderr.trim().is_empty() {
+                        return Err(eyre::eyre!(format!("{} (exit status {:?})", msg, status)));
+                    }
+                    return Err(eyre::eyre!(format!(
+                        "{} (exit status {:?})\nstderr:\n{}",
+                        msg, status, stderr
+                    )));
+                }
+                Ok(())
             }
-            bail!("{} (exit status {:?})\nstderr:\n{}", msg, status, stderr);
+            Err(e) => Err(e).wrap_err(msg),
         }
-
-        Ok(())
     }
 
     /// Run the configured command and capture its output.
