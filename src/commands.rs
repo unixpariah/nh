@@ -126,9 +126,7 @@ impl Command {
     {
         for key in keys {
             let key_str = key.as_ref().to_string();
-            if std::env::var(&key_str).is_ok() {
-                self.env_vars.insert(key_str, EnvAction::Preserve);
-            }
+            self.env_vars.insert(key_str, EnvAction::Preserve);
         }
         self
     }
