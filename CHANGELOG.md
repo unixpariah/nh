@@ -45,6 +45,7 @@ functionality, under the "Removed" section.
   relevant bits of the clean module has been sped up.
   - It's roughly %4 faster according to testing, but IO is still a limiting
     factor and results may differ.
+- Added more context to some minor debug messages across platform commands.
 
 ### Fixed
 

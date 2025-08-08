@@ -128,7 +128,7 @@ impl OsRebuildArgs {
             },
         };
 
-        debug!(?out_path);
+        debug!("Output path: {out_path:?}");
 
         // Use NH_OS_FLAKE if available, otherwise use the provided installable
         let installable = if let Ok(os_flake) = env::var("NH_OS_FLAKE") {
@@ -179,7 +179,7 @@ impl OsRebuildArgs {
             current_specialisation.or_else(|| self.specialisation.clone())
         };
 
-        debug!("target_specialisation: {target_specialisation:?}");
+        debug!("Target specialisation: {target_specialisation:?}");
 
         let target_profile = match &target_specialisation {
             None => out_path.get_path().to_owned(),
