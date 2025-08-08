@@ -125,8 +125,10 @@ impl Command {
         K: AsRef<str>,
     {
         for key in keys {
-            self.env_vars
-                .insert(key.as_ref().to_string(), EnvAction::Preserve);
+            let key_str = key.as_ref().to_string();
+            if std::env::var(&key_str).is_ok() {
+                self.env_vars.insert(key_str, EnvAction::Preserve);
+            }
         }
         self
     }
@@ -134,9 +136,10 @@ impl Command {
     /// Configure environment for Nix and NH operations
     #[must_use]
     pub fn with_required_env(mut self) -> Self {
-        const ENV: &[&str] = &[
-            // This is not a part of Nix's environment, but it might be necessary.
-            // nixos-rebuild preserves it, so we do too.
+        // Centralized list of environment variables to preserve
+        // This is not a part of Nix's environment, but it might be necessary.
+        // nixos-rebuild preserves it, so we do too.
+        const PRESERVE_ENV: &[&str] = &[
             "LOCALE_ARCHIVE",
             // PATH needs to be preserved so that NH can invoke CLI utilities.
             "PATH",
@@ -155,14 +158,11 @@ impl Command {
             "NIX_USER_CONF_FILES",
         ];
 
-        let env_vars = std::env::vars()
-            .filter_map(|(key, value)| match key.as_str() {
-                "USER" => Some((key, EnvAction::Set(value))),
-                k if ENV.contains(&k) => Some((key, EnvAction::Preserve)),
-                k if k.starts_with("NH_") => Some((key, EnvAction::Set(value))),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        // Always explicitly set USER if present
+        if let Ok(user) = std::env::var("USER") {
+            self.env_vars
+                .insert("USER".to_string(), EnvAction::Set(user));
+        }
 
         // Only propagate HOME for non-elevated commands
         if !self.elevate {
@@ -172,9 +172,23 @@ impl Command {
             }
         }
 
+        // Preserve all variables in PRESERVE_ENV if present
+        for &key in PRESERVE_ENV {
+            if std::env::var(key).is_ok() {
+                self.env_vars.insert(key.to_string(), EnvAction::Preserve);
+            }
+        }
+
+        // Explicitly set NH_* variables
+        for (key, value) in std::env::vars() {
+            if key.starts_with("NH_") {
+                self.env_vars.insert(key, EnvAction::Set(value));
+            }
+        }
+
         debug!(
-            "Preserved envs: {}",
-            env_vars
+            "Configured envs: {}",
+            self.env_vars
                 .iter()
                 .map(|(key, action)| match action {
                     EnvAction::Set(value) => format!("{key}={value}"),
@@ -184,10 +198,6 @@ impl Command {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
-
-        for (key, action) in env_vars {
-            self.env_vars.insert(key, action);
-        }
 
         self
     }
@@ -199,6 +209,7 @@ impl Command {
                     cmd = cmd.env(key, value);
                 }
                 EnvAction::Preserve => {
+                    // Only preserve if present in current environment
                     if let Ok(value) = std::env::var(key) {
                         cmd = cmd.env(key, value);
                     }
@@ -233,32 +244,22 @@ impl Command {
             }
         }
 
-        if cfg!(target_os = "macos") {
-            // Check for if sudo has the preserve-env flag
-            let has_preserve_env = Exec::cmd("sudo")
-                .args(&["--help"])
-                .stderr(Redirection::None)
-                .stdout(Redirection::Pipe)
-                .capture()
-                .map(|output| output.stdout_str().contains("--preserve-env"))
-                .unwrap_or_else(|e| {
-                    debug!("Failed to check sudo --help: {}", e);
-                    false
-                });
-
-            if has_preserve_env && !preserve_vars.is_empty() {
+        // Platform-specific handling for preserve-env
+        if !preserve_vars.is_empty() {
+            if cfg!(target_os = "macos") {
+                // Check for if sudo has the preserve-env flag
+                // NOTE: This previously parsed sudo --help output, which is brittle.
+                // Now we assume modern sudo supports --preserve-env.
                 cmd = cmd.args(&[
                     "--set-home",
                     &format!("--preserve-env={}", preserve_vars.join(",")),
                 ]);
             } else {
-                cmd = cmd.arg("--set-home");
-            }
-        } else {
-            // On Linux, use specific environment preservation
-            if !preserve_vars.is_empty() {
+                // On Linux, use specific environment preservation
                 cmd = cmd.arg(format!("--preserve-env={}", preserve_vars.join(",")));
             }
+        } else if cfg!(target_os = "macos") {
+            cmd = cmd.arg("--set-home");
         }
 
         // Use NH_SUDO_ASKPASS program for sudo if present
