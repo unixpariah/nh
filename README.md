@@ -83,18 +83,27 @@ all with their extensive CLI flags for extensive configuration.
 
 ### Global Subcommands
 
+- `nh search` - a super-fast package searching tool (powered by a ElasticSearch
+  client).
+
 <p align="center">
   <img
-    alt="nh feature showcase"
-    src="./.github/screenshot.png"
+    alt="nh search showcase"
+    src="./.github/nh_search_screenshot.png"
     width="800px"
   >
 </p>
 
-- `nh search` - a super-fast package searching tool (powered by a ElasticSearch
-  client).
 - `nh clean` - a re-implementation of `nix-collect-garbage` that also collects
   gcroots.
+
+<p align="center">
+  <img
+    alt="nh clean showcase"
+    src="./.github/nh_clean_screenshot.png"
+    width="800px"
+  >
+</p>
 
 ### Platform Specific Subcommands
 
@@ -102,6 +111,15 @@ all with their extensive CLI flags for extensive configuration.
   - build-tree displays.
   - diff of changes.
   - confirmation.
+
+<p align="center">
+  <img
+    alt="nh os switch showcase"
+    src="./.github/nh_switch_screenshot.png"
+    width="800px"
+  >
+</p>
+
 - `nh home` - reimplements `home-manager`.
 - `nh darwin` - which reimplements `darwin-rebuild`.
 
