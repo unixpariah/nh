@@ -36,11 +36,10 @@ jobs:
 
       - name: Run Tests
         run: |
-          eval "$(nix print-dev-env)"
           set -x
 
           # Verify that tests pass
-          cargo test || exit 1
+          nix develop --command cargo test
 
       - name: Test Switching to NixOS Configuration
         run: |
@@ -58,13 +57,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Tests
-        shell: bash
         run: |
-          eval "$(nix print-dev-env)"
           set -x
 
           # Verify that tests pass
-          cargo test || exit 1
+          nix develop --command cargo test
 
       - name: Test Switching to Nix Darwin Configuration
         run: |
