@@ -48,17 +48,5 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - run: nix build -L --no-link
-        name: Build
-
-      # FIXME: this should be moved out of the build workflow. It is **not** a build job
-      # and opens the door to CI failures due to upstream (nix-darwin) errors. This should
-      # instead me made into a VM test.
-      - run: |
-          mkdir flake
-          cd flake
-          nix flake init -t nix-darwin
-          git add flake.nix
-          cd ..
-          nix run .#nh -- darwin switch --hostname simple --dry --no-nom --verbose ./flake
-        name: Test Switching to Nix Darwin Configuration
+      - name: Build NH with Nix
+        run: nix build -L --no-link
