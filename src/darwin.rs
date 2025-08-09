@@ -2,7 +2,8 @@ use std::env;
 use std::path::PathBuf;
 
 use color_eyre::eyre::{Context, bail, eyre};
-use tracing::{debug, info, warn};
+use inquire::Confirm;
+use tracing::{debug, warn};
 
 use crate::Result;
 use crate::commands;
@@ -143,8 +144,9 @@ impl DarwinRebuildArgs {
         }
 
         if self.common.ask && !self.common.dry && !matches!(variant, Build) {
-            info!("Apply the config?");
-            let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+            let confirmation = Confirm::new("Apply the config?")
+                .with_default(false)
+                .prompt()?;
 
             if !confirmation {
                 bail!("User rejected the new config");

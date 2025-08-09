@@ -2,9 +2,9 @@ use std::env;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use color_eyre::eyre::bail;
-use color_eyre::eyre::WrapErr;
 use color_eyre::Result;
+use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::bail;
 use tracing::{debug, info, warn};
 
 use crate::commands;
@@ -187,7 +187,9 @@ pub fn confirm_action(ask: bool, dry: bool) -> Result<bool> {
 
     if ask {
         info!("Apply the config?");
-        let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+        let confirmation = Confirm::new("Apply the config?")
+            .with_default(false)
+            .prompt()?;
 
         if !confirmation {
             bail!("User rejected the new config");
@@ -466,8 +468,10 @@ pub fn get_target_hostname(
         Some(hostname) => hostname,
         None => match system_hostname.clone() {
             Some(hostname) => hostname,
-            None => bail!("Unable to fetch hostname automatically. Please specify explicitly with --hostname.")
-        }
+            None => bail!(
+                "Unable to fetch hostname automatically. Please specify explicitly with --hostname."
+            ),
+        },
     };
 
     // Skip comparison when system hostname != target hostname if requested

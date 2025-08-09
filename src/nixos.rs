@@ -239,8 +239,9 @@ impl OsRebuildArgs {
         }
 
         if self.common.ask {
-            info!("Apply the config?");
-            let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+            let confirmation = inquire::Confirm::new("Apply the config?")
+                .with_default(false)
+                .prompt()?;
 
             if !confirmation {
                 bail!("User rejected the new config");
@@ -420,8 +421,12 @@ impl OsRollbackArgs {
         }
 
         if self.ask {
-            info!("Roll back to generation {}?", target_generation.number);
-            let confirmation = dialoguer::Confirm::new().default(false).interact()?;
+            let confirmation = inquire::Confirm::new(&format!(
+                "Roll back to generation {}?",
+                target_generation.number
+            ))
+            .with_default(false)
+            .prompt()?;
 
             if !confirmation {
                 bail!("User rejected the rollback");
