@@ -34,11 +34,11 @@ clap_builder = "4.5.41"
 clap_complete = "4.5.8"
 clean-path = "0.2"
 color-eyre = { default-features = false, features = [ "track-caller" ], version = "0.6.2" }
-dialoguer = { default-features = false, version = "0.11.0" }
 dix = "1.2.1"
 elasticsearch-dsl = "0.4.19"
 hostname = "0.4"
 humantime = "2.1.0"
+inquire = { default-features = false, version = "0.7", features = [ "crossterm" ] }
 nix = { default-features = false, features = [ "fs", "user" ], version = "0.30.1" }
 owo-colors = "4.0.0"
 regex = "1.8.4"

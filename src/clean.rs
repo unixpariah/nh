@@ -7,6 +7,7 @@ use std::{
 };
 
 use color_eyre::eyre::{Context, ContextCompat, bail, eyre};
+use inquire::Confirm;
 use nix::errno::Errno;
 use nix::{
     fcntl::AtFlags,
@@ -286,11 +287,12 @@ impl interface::CleanMode {
         }
 
         // Clean the paths
-        if args.ask {
-            info!("Confirm the cleanup plan?");
-            if !dialoguer::Confirm::new().default(false).interact()? {
-                bail!("User rejected the cleanup plan");
-            }
+        if args.ask
+            && !Confirm::new("Confirm the cleanup plan?")
+                .with_default(false)
+                .prompt()?
+        {
+            bail!("User rejected the cleanup plan");
         }
 
         if !args.dry {
