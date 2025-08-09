@@ -407,12 +407,20 @@ pub struct CleanArgs {
     pub ask: bool,
 
     /// Don't run nix store --gc
-    #[arg(long)]
-    pub nogc: bool,
+    #[arg(long = "no-gc", alias = "nogc")]
+    pub no_gc: bool,
 
     /// Don't clean gcroots
+    #[arg(long = "no-gcroots", alias = "nogcroots")]
+    pub no_gcroots: bool,
+
+    /// Run nix-store --optimise after gc
     #[arg(long)]
-    pub nogcroots: bool,
+    pub optimise: bool,
+
+    /// Pass --max to nix store gc
+    #[arg(long)]
+    pub max: Option<String>,
 }
 
 #[derive(Debug, Clone, Args)]
