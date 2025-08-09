@@ -27,11 +27,15 @@ please do make sure to include it above in your description.
 - Style and consistency
   - [ ] I ran **`nix fmt`** to format my Nix code
   - [ ] I ran **`cargo fmt`** to format my Rust code
+  - [ ] I have added appropriate docunentation to new code
   - [ ] My changes are consistent with the rest of the codebase
 - Correctness
   - [ ] I ran **`cargo clippy`** and fixed any new linter warnings.
 - If new changes are particularly complex:
-  - [ ] My code includes comments in particularly complex areas
+  - [ ] My code includes comments in particularly complex areas to explain the
+        logic
+  - [ ] I have documented the motive for those changes in the PR body or commit
+        description.
 - Tested on platform(s)
   - [ ] `x86_64-linux`
   - [ ] `aarch64-linux`
