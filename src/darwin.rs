@@ -2,7 +2,6 @@ use std::env;
 use std::path::PathBuf;
 
 use color_eyre::eyre::{Context, bail, eyre};
-use inquire::Confirm;
 use tracing::{debug, warn};
 
 use crate::Result;
@@ -144,7 +143,7 @@ impl DarwinRebuildArgs {
         }
 
         if self.common.ask && !self.common.dry && !matches!(variant, Build) {
-            let confirmation = Confirm::new("Apply the config?")
+            let confirmation = inquire::Confirm::new("Apply the config?")
                 .with_default(false)
                 .prompt()?;
 

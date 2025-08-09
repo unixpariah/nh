@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail, eyre};
-use inquire::Confirm;
 use tracing::{debug, info, warn};
 
 use crate::commands;
@@ -161,7 +160,7 @@ impl HomeRebuildArgs {
         }
 
         if self.common.ask {
-            let confirmation = Confirm::new("Apply the config?")
+            let confirmation = inquire::Confirm::new("Apply the config?")
                 .with_default(false)
                 .prompt()?;
 
