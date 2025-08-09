@@ -176,7 +176,7 @@ impl interface::CleanMode {
         // Query gcroots
         let regexes = [&*DIRENV_REGEX, &*RESULT_REGEX];
 
-        if !is_profile_clean && !args.nogcroots {
+        if !is_profile_clean && !args.no_gcroots {
             for elem in PathBuf::from("/nix/var/nix/gcroots/auto")
                 .read_dir()
                 .wrap_err("Reading auto gcroots dir")?
@@ -250,6 +250,7 @@ impl interface::CleanMode {
         println!("Keeping paths newer than {}", args.keep_since.green());
         println!();
         println!("legend:");
+        println!("{}: path regular expression to be matched", "RE".purple());
         println!("{}: path to be kept", "OK".green());
         println!("{}: path to be removed", "DEL".red());
         println!();
@@ -308,11 +309,26 @@ impl interface::CleanMode {
             }
         }
 
-        if !args.nogc {
+        if !args.no_gc {
+            let mut gc_args = vec!["store", "gc"];
+            if let Some(ref max) = args.max {
+                gc_args.push("--max");
+                gc_args.push(max.as_str());
+            }
             Command::new("nix")
-                .args(["store", "gc"])
+                .args(gc_args)
                 .dry(args.dry)
                 .message("Performing garbage collection on the nix store")
+                .show_output(true)
+                .with_required_env()
+                .run()?;
+        }
+
+        if args.optimise {
+            Command::new("nix-store")
+                .args(["--optimise"])
+                .dry(args.dry)
+                .message("Optimising the nix store")
                 .show_output(true)
                 .with_required_env()
                 .run()?;
