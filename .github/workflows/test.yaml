@@ -44,7 +44,7 @@ jobs:
 
       - name: Test Switching to NixOS Configuration
         run: |
-          nix run .#nh -- os switch --diff never --dry --no-nom --file ./test/configuration.nix
+          nix run .#nh -- os switch --diff never --dry --no-nom --verbose --file ./test/nixos.nix
 
   build-darwin:
     name: "Test NH on Darwin"
@@ -58,6 +58,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Tests
+        shell: bash
         run: |
           eval "$(nix print-dev-env)"
           set -x
@@ -72,5 +73,5 @@ jobs:
           nix flake init -t nix-darwin
           git add flake.nix
           cd ..
-          nix run .#nh -- darwin switch --hostname simple --dry --no-nom --verbose ./flake
+          nix run .#nh -- darwin switch --diff never --hostname simple --dry --no-nom --verbose ./flake
 
