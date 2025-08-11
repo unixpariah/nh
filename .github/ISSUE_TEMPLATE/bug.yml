@@ -7,7 +7,7 @@ labels: ["bug (requires confirmation)"]
 body:
   - type: checkboxes
     attributes:
-      label: I have confirmed that this is a bug related to nnh
+      label: I have confirmed that this is a bug related to nh
       description: >-
         If you are unsure whether this is a bug, a packaging issue, or user error that is *not*
         stemming from NH, please consider creating a [discussion](https://github.com/nix-community/nh/discussions)
@@ -40,9 +40,9 @@ body:
       label: Installation Method
       description: How was NH installed?
       options:
-        - NixOS (nixpkgs, `pkgs.nh`)
-        - Nix Profile/nix-env (from master brach)
-        - Other
+        - Stable Release (nixpkgs, `pkgs.nh` from nixos-unstable or nixos-yy-mm)
+        - `nix profile add`/`nix-env` (from master branch or from a release)
+        - Other (Please specify)
 
     validations:
       required: true
@@ -62,7 +62,7 @@ body:
       label: NH Version
       description: "Which version of NH is currently in use? (`nh --version`)"
       placeholder: >-
-        For example, v4.1.0
+        For example, v4.1.0.
 
     validations:
       required: true
