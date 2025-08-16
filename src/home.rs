@@ -48,13 +48,13 @@ impl HomeRebuildArgs {
             update(&self.common.installable, self.update_args.update_input)?;
         }
 
-        let out_path: Box<dyn crate::util::MaybeTempPath> = match self.common.out_link {
-            Some(ref p) => Box::new(p.clone()),
-            None => Box::new({
+        let (out_path, _tempdir_guard): (PathBuf, Option<tempfile::TempDir>) =
+            if let Some(ref p) = self.common.out_link {
+                (p.clone(), None)
+            } else {
                 let dir = tempfile::Builder::new().prefix("nh-home").tempdir()?;
-                (dir.as_ref().join("result"), dir)
-            }),
-        };
+                (dir.as_ref().join("result"), Some(dir))
+            };
 
         debug!("Output path: {out_path:?}");
 
@@ -89,7 +89,7 @@ impl HomeRebuildArgs {
 
         commands::Build::new(toplevel)
             .extra_arg("--out-link")
-            .extra_arg(out_path.get_path())
+            .extra_arg(&out_path)
             .extra_args(&self.extra_args)
             .passthrough(&self.common.passthrough)
             .message("Building Home-Manager configuration")
@@ -112,12 +112,11 @@ impl HomeRebuildArgs {
         let spec_location =
             PathBuf::from(std::env::var("HOME")?).join(".local/share/home-manager/specialisation");
 
-        let current_specialisation = match spec_location.to_str() {
-            Some(s) => std::fs::read_to_string(s).ok(),
-            None => {
-                tracing::warn!("spec_location path is not valid UTF-8");
-                None
-            }
+        let current_specialisation = if let Some(s) = spec_location.to_str() {
+            std::fs::read_to_string(s).ok()
+        } else {
+            tracing::warn!("spec_location path is not valid UTF-8");
+            None
         };
 
         let target_specialisation = if self.no_specialisation {
@@ -128,17 +127,11 @@ impl HomeRebuildArgs {
 
         debug!("target_specialisation: {target_specialisation:?}");
 
-        let target_profile: Box<dyn crate::util::MaybeTempPath> =
-            if let Some(spec) = &target_specialisation {
-                Box::new(out_path.get_path().join("specialisation").join(spec))
-            } else {
-                out_path
-            };
-
-        // Take a strong reference to ensure the TempDir isn't dropped
-        // This prevents early dropping of the tempdir, which causes dix to fail
-        #[allow(unused_variables)]
-        let keep_alive = target_profile.get_path().to_owned();
+        let target_profile: PathBuf = if let Some(spec) = &target_specialisation {
+            out_path.join("specialisation").join(spec)
+        } else {
+            out_path.clone()
+        };
 
         // just do nothing for None case (fresh installs)
         if let Some(generation) = prev_generation {
@@ -147,7 +140,7 @@ impl HomeRebuildArgs {
                     debug!("Not running dix as the --diff flag is set to never.");
                 }
                 _ => {
-                    let _ = print_dix_diff(&generation, target_profile.get_path());
+                    let _ = print_dix_diff(&generation, &target_profile);
                 }
             }
         }
@@ -176,19 +169,13 @@ impl HomeRebuildArgs {
             }
         }
 
-        Command::new(target_profile.get_path().join("activate"))
+        Command::new(target_profile.join("activate"))
             .with_required_env()
             .message("Activating configuration")
             .run()
             .wrap_err("Activation failed")?;
 
-        // Make sure out_path is not accidentally dropped
-        // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
-        debug!(
-            "Completed operation with output path: {:?}",
-            target_profile.get_path()
-        );
-        drop(target_profile);
+        debug!("Completed operation with output path: {target_profile:?}");
 
         Ok(())
     }
