@@ -56,13 +56,13 @@ impl DarwinRebuildArgs {
 
         let hostname = self.hostname.ok_or(()).or_else(|()| get_hostname())?;
 
-        let out_path: Box<dyn crate::util::MaybeTempPath> = match self.common.out_link {
-            Some(ref p) => Box::new(p.clone()),
-            None => Box::new({
+        let (out_path, _tempdir_guard): (PathBuf, Option<tempfile::TempDir>) =
+            if let Some(ref p) = self.common.out_link {
+                (p.clone(), None)
+            } else {
                 let dir = tempfile::Builder::new().prefix("nh-os").tempdir()?;
-                (dir.as_ref().join("result"), dir)
-            }),
-        };
+                (dir.as_ref().join("result"), Some(dir))
+            };
 
         debug!("Output path: {out_path:?}");
 
@@ -104,7 +104,7 @@ impl DarwinRebuildArgs {
 
         commands::Build::new(toplevel)
             .extra_arg("--out-link")
-            .extra_arg(out_path.get_path())
+            .extra_arg(&out_path)
             .extra_args(&self.extra_args)
             .passthrough(&self.common.passthrough)
             .message("Building Darwin configuration")
@@ -112,17 +112,7 @@ impl DarwinRebuildArgs {
             .run()
             .wrap_err("Failed to build Darwin configuration")?;
 
-        let target_profile = out_path.get_path().to_owned();
-
-        // Take a strong reference to out_path to prevent premature dropping
-        // We need to keep this alive through the entire function scope to prevent
-        // the tempdir from being dropped early, which would cause dix to fail
-        #[allow(unused_variables)]
-        let keep_alive = out_path.get_path().to_owned();
-        debug!(
-            "Registered keep_alive reference to: {}",
-            keep_alive.display()
-        );
+        let target_profile = out_path.clone();
 
         target_profile.try_exists().context("Doesn't exist")?;
 
@@ -155,15 +145,15 @@ impl DarwinRebuildArgs {
         if matches!(variant, Switch) {
             Command::new("nix")
                 .args(["build", "--no-link", "--profile", SYSTEM_PROFILE])
-                .arg(out_path.get_path())
+                .arg(&out_path)
                 .elevate(true)
                 .dry(self.common.dry)
                 .with_required_env()
                 .run()
                 .wrap_err("Failed to set Darwin system profile")?;
 
-            let darwin_rebuild = out_path.get_path().join("sw/bin/darwin-rebuild");
-            let activate_user = out_path.get_path().join("activate-user");
+            let darwin_rebuild = out_path.join("sw/bin/darwin-rebuild");
+            let activate_user = out_path.join("activate-user");
 
             // Determine if we need to elevate privileges
             let needs_elevation = !activate_user
@@ -185,13 +175,7 @@ impl DarwinRebuildArgs {
                 .wrap_err("Darwin activation failed")?;
         }
 
-        // Make sure out_path is not accidentally dropped
-        // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
-        debug!(
-            "Completed operation with output path: {:?}",
-            out_path.get_path()
-        );
-        drop(out_path);
+        debug!("Completed operation with output path: {out_path:?}");
 
         Ok(())
     }

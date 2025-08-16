@@ -117,16 +117,17 @@ impl OsRebuildArgs {
             },
         };
 
-        let out_path: Box<dyn crate::util::MaybeTempPath> = match self.common.out_link {
-            Some(ref p) => Box::new(p.clone()),
-            None => match variant {
-                BuildVm | Build => Box::new(PathBuf::from("result")),
-                _ => Box::new({
-                    let dir = tempfile::Builder::new().prefix("nh-os").tempdir()?;
-                    (dir.as_ref().join("result"), dir)
-                }),
-            },
-        };
+        let (out_path, _tempdir_guard): (PathBuf, Option<tempfile::TempDir>) =
+            match self.common.out_link {
+                Some(ref p) => (p.clone(), None),
+                None => match variant {
+                    BuildVm | Build => (PathBuf::from("result"), None),
+                    _ => {
+                        let dir = tempfile::Builder::new().prefix("nh-os").tempdir()?;
+                        (dir.as_ref().join("result"), Some(dir))
+                    }
+                },
+            };
 
         debug!("Output path: {out_path:?}");
 
@@ -165,7 +166,7 @@ impl OsRebuildArgs {
 
         commands::Build::new(toplevel)
             .extra_arg("--out-link")
-            .extra_arg(out_path.get_path())
+            .extra_arg(&out_path)
             .extra_args(&self.extra_args)
             .passthrough(&self.common.passthrough)
             .builder(self.build_host.clone())
@@ -185,16 +186,13 @@ impl OsRebuildArgs {
         debug!("Target specialisation: {target_specialisation:?}");
 
         let target_profile = match &target_specialisation {
-            None => out_path.get_path().to_owned(),
-            Some(spec) => out_path.get_path().join("specialisation").join(spec),
+            None => out_path.clone(),
+            Some(spec) => out_path.join("specialisation").join(spec),
         };
 
-        debug!("Output path: {}", out_path.get_path().display());
+        debug!("Output path: {out_path:?}");
         debug!("Target profile path: {}", target_profile.display());
         debug!("Target profile exists: {}", target_profile.exists());
-
-        // Note: out_path itself is kept alive until the end of this function,
-        // which prevents the tempdir (if any) from being dropped early
 
         if !target_profile
             .try_exists()
@@ -301,7 +299,6 @@ impl OsRebuildArgs {
 
         if let Boot | Switch = variant {
             let canonical_out_path = out_path
-                .get_path()
                 .canonicalize()
                 .context("Failed to resolve output path")?;
 
@@ -314,10 +311,7 @@ impl OsRebuildArgs {
                 .run()
                 .wrap_err("Failed to set system profile")?;
 
-            let switch_to_configuration = out_path
-                .get_path()
-                .join("bin")
-                .join("switch-to-configuration");
+            let switch_to_configuration = out_path.join("bin").join("switch-to-configuration");
 
             if !switch_to_configuration.exists() {
                 return Err(eyre!(
@@ -350,13 +344,7 @@ impl OsRebuildArgs {
                 .wrap_err("Bootloader activation failed")?;
         }
 
-        // Make sure out_path is not accidentally dropped
-        // https://docs.rs/tempfile/3.12.0/tempfile/index.html#early-drop-pitfall
-        debug!(
-            "Completed operation with output path: {:?}",
-            out_path.get_path()
-        );
-        drop(out_path);
+        debug!("Completed operation with output path: {out_path:?}");
 
         Ok(())
     }

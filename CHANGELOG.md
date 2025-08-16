@@ -63,6 +63,8 @@ functionality, under the "Removed" section.
   variables to individual commands. This is an experimental change, please let
   us know if you face any new bugs.
   ([#314](https://github.com/nix-community/nh/issues/314))
+- Fixed a tempdir race condition causing activation failures.
+  [#386](https://github.com/nix-community/nh/pull/386)
 
 ## 4.1.2
 
