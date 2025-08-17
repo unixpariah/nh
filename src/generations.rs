@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
@@ -66,16 +66,34 @@ pub fn describe(generation_dir: &Path) -> Option<GenerationInfo> {
     let nixos_version = fs::read_to_string(generation_dir.join("nixos-version"))
         .unwrap_or_else(|_| "Unknown".to_string());
 
-    let kernel_dir = generation_dir
+    // XXX: Nixpkgs appears to have changed where kernel modules are stored in a
+    // recent change. I do not care to track which, but we should try the new path
+    // and fall back to the old one IF and ONLY IF the new one fails. This is to
+    // avoid breakage for outdated channels.
+    let kernel_modules_dir_new = generation_dir.join("kernel-modules/lib/modules");
+    let kernel_modules_dir_old = generation_dir
         .join("kernel")
         .canonicalize()
         .ok()
         .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
-        .unwrap_or_else(|| PathBuf::from("Unknown"));
+        .unwrap_or_else(|| generation_dir.to_path_buf())
+        .join("lib/modules");
 
-    let kernel_modules_dir = kernel_dir.join("lib/modules");
-    let kernel_version = if kernel_modules_dir.exists() {
-        match fs::read_dir(&kernel_modules_dir) {
+    let kernel_version = if kernel_modules_dir_new.exists() {
+        match fs::read_dir(&kernel_modules_dir_new) {
+            Ok(entries) => {
+                let mut versions = Vec::with_capacity(4);
+                for entry in entries.filter_map(Result::ok) {
+                    if let Some(name) = entry.file_name().to_str() {
+                        versions.push(name.to_string());
+                    }
+                }
+                versions.join(", ")
+            }
+            Err(_) => "Unknown".to_string(),
+        }
+    } else if kernel_modules_dir_old.exists() {
+        match fs::read_dir(&kernel_modules_dir_old) {
             Ok(entries) => {
                 let mut versions = Vec::with_capacity(4);
                 for entry in entries.filter_map(Result::ok) {
