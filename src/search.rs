@@ -170,14 +170,13 @@ impl SearchArgs {
         let hyperlinks = supports_hyperlinks::supports_hyperlinks();
         debug!(?hyperlinks);
 
-        let nixpkgs_path = String::from_utf8(
-            nixpkgs_path
-                .join()
-                .unwrap()
-                .context("Evaluating the nixpkgs path location")?
-                .stdout,
-        )
-        .unwrap();
+        let nixpkgs_path_output = nixpkgs_path
+            .join()
+            .map_err(|e| color_eyre::eyre::eyre!("nixpkgs_path thread panicked: {e:?}"))?;
+        let nixpkgs_path_output =
+            nixpkgs_path_output.context("Evaluating the nixpkgs path location")?;
+        let nixpkgs_path = String::from_utf8(nixpkgs_path_output.stdout)
+            .context("Converting nixpkgs_path to UTF-8")?;
 
         for elem in documents.iter().rev() {
             println!();
