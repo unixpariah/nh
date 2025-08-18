@@ -1,9 +1,8 @@
 use std::sync::LazyLock;
 use std::{
     collections::HashSet,
-    fmt,
-    io::{self},
-    path::{Path, PathBuf},
+    fmt, io,
+    path::Path,
     process::{Command as StdCommand, Stdio},
     str,
     sync::OnceLock,
@@ -12,7 +11,6 @@ use std::{
 use color_eyre::Result;
 use color_eyre::eyre;
 use regex::Regex;
-use tempfile::TempDir;
 use tracing::{debug, info};
 
 use crate::commands::Command;
@@ -175,23 +173,6 @@ pub fn ensure_ssh_key_login() -> Result<()> {
         .spawn()?
         .wait()?;
     Ok(())
-}
-
-/// Represents an object that may be a temporary path
-pub trait MaybeTempPath: std::fmt::Debug {
-    fn get_path(&self) -> &Path;
-}
-
-impl MaybeTempPath for PathBuf {
-    fn get_path(&self) -> &Path {
-        self.as_ref()
-    }
-}
-
-impl MaybeTempPath for (PathBuf, TempDir) {
-    fn get_path(&self) -> &Path {
-        self.0.as_ref()
-    }
 }
 
 /// Gets the hostname of the current system
