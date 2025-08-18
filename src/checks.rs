@@ -568,7 +568,10 @@ mod tests {
 
         let result = verify_variables();
 
-        assert!(result, "Should warn when migrating FLAKE to NH_FLAKE");
+        assert!(
+            result.is_ok(),
+            "Should warn when migrating FLAKE to NH_FLAKE"
+        );
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
     }
 
@@ -588,7 +591,10 @@ mod tests {
 
         let result = verify_variables();
 
-        assert!(!result, "Should not warn when NH_FLAKE already exists");
+        assert!(
+            result.is_ok(),
+            "Should not warn when NH_FLAKE already exists"
+        );
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/existing/flake");
     }
 
@@ -608,7 +614,10 @@ mod tests {
 
         let result = verify_variables();
 
-        assert!(!result, "Should not warn when specific flake vars exist");
+        assert!(
+            result.is_ok(),
+            "Should not warn when specific flake vars exist"
+        );
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
     }
 
