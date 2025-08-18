@@ -78,20 +78,14 @@ pub fn check_nix_version() -> Result<()> {
     }
 }
 
-/// Handles environment variable setup and returns if a warning should be shown
+/// Checks if core NH environment variables are set correctly. This was previously
+/// `setup_environment()`, but the setup logic has been moved away.
 ///
 /// # Returns
 ///
-/// * `Result<bool>` - True if a warning should be shown about the FLAKE
-///   variable, false otherwise
-///
-/// # Returns
-///
-/// * `bool` - True if a warning should be shown about the FLAKE variable, or false otherwise
-#[must_use]
-pub fn setup_environment() -> bool {
-    let mut do_warn = false;
-
+/// - `Result<()>` - Ok under all conditions. The user will only receive
+///   a warning when their variable is determined to be outdated.
+pub fn verify_variables() -> Result<()> {
     if let Ok(f) = std::env::var("FLAKE") {
         // Set NH_FLAKE if it's not already set
         if std::env::var("NH_FLAKE").is_err() {
@@ -105,12 +99,15 @@ pub fn setup_environment() -> bool {
                 && std::env::var("NH_HOME_FLAKE").is_err()
                 && std::env::var("NH_DARWIN_FLAKE").is_err()
             {
-                do_warn = true;
+                tracing::warn!(
+                    "nh {} now uses NH_FLAKE instead of FLAKE, please update your configuration",
+                    super::NH_VERSION
+                );
             }
         }
     }
 
-    do_warn
+    Ok(())
 }
 
 /// Consolidate all necessary checks for Nix functionality into a single
@@ -569,7 +566,7 @@ mod tests {
 
         let _guard = EnvGuard::new("FLAKE", "/test/flake");
 
-        let result = setup_environment();
+        let result = verify_variables();
 
         assert!(result, "Should warn when migrating FLAKE to NH_FLAKE");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");
@@ -589,7 +586,7 @@ mod tests {
         let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
         let _guard2 = EnvGuard::new("NH_FLAKE", "/existing/flake");
 
-        let result = setup_environment();
+        let result = verify_variables();
 
         assert!(!result, "Should not warn when NH_FLAKE already exists");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/existing/flake");
@@ -609,7 +606,7 @@ mod tests {
         let _guard1 = EnvGuard::new("FLAKE", "/test/flake");
         let _guard2 = EnvGuard::new("NH_OS_FLAKE", "/os/flake");
 
-        let result = setup_environment();
+        let result = verify_variables();
 
         assert!(!result, "Should not warn when specific flake vars exist");
         assert_eq!(env::var("NH_FLAKE").unwrap(), "/test/flake");

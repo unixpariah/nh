@@ -16,8 +16,8 @@ mod util;
 
 use color_eyre::Result;
 
-const NH_VERSION: &str = env!("CARGO_PKG_VERSION");
-const NH_REV: Option<&str> = option_env!("NH_REV");
+pub const NH_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const NH_REV: Option<&str> = option_env!("NH_REV");
 
 fn main() -> Result<()> {
     let args = <crate::interface::Main as clap::Parser>::parse();
@@ -33,11 +33,7 @@ fn main() -> Result<()> {
     // Once we assert required Nix features, validate NH environment checks
     // For now, this is just NH_* variables being set. More checks may be
     // added to setup_environment in the future.
-    if checks::setup_environment() {
-        tracing::warn!(
-            "nh {NH_VERSION} now uses NH_FLAKE instead of FLAKE, please modify your configuration"
-        );
-    }
+    checks::verify_variables()?;
 
     args.command.run()
 }
