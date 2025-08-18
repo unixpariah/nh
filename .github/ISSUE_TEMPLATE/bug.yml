@@ -41,7 +41,7 @@ body:
       description: How was NH installed?
       options:
         - Stable Release (nixpkgs, `pkgs.nh` from nixos-unstable or nixos-yy-mm)
-        - `nix profile add`/`nix-env` (from master branch or from a release)
+        - Flakes (`nix profile add`) / Channels (`nix-env` from master branch or from a release)
         - Other (Please specify)
 
     validations:
