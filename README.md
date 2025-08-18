@@ -84,26 +84,24 @@ all with their extensive CLI flags for extensive configuration.
 ### Global Subcommands
 
 - `nh search` - a super-fast package searching tool (powered by a ElasticSearch
-  client).
-
-<p align="center">
-  <img
-    alt="nh search showcase"
-    src="./.github/nh_search_screenshot.png"
-    width="800px"
-  >
-</p>
+  client) for Nix packages in supported Nixpkgs branches.
+  <p align="center">
+    <img
+      alt="nh search showcase"
+      src="./.github/nh_search_screenshot.png"
+      width="750px"
+    >
+  </p>
 
 - `nh clean` - a re-implementation of `nix-collect-garbage` that also collects
   gcroots.
-
-<p align="center">
-  <img
-    alt="nh clean showcase"
-    src="./.github/nh_clean_screenshot.png"
-    width="800px"
-  >
-</p>
+  <p align="center">
+    <img
+      alt="nh clean showcase"
+      src="./.github/nh_clean_screenshot.png"
+      width="750px"
+    >
+  </p>
 
 ### Platform Specific Subcommands
 
@@ -111,25 +109,25 @@ all with their extensive CLI flags for extensive configuration.
   - build-tree displays.
   - diff of changes.
   - confirmation.
-
-<p align="center">
-  <img
-    alt="nh os switch showcase"
-    src="./.github/nh_switch_screenshot.png"
-    width="800px"
-  >
-</p>
+  <p align="center">
+    <img
+      alt="nh os switch showcase"
+      src="./.github/nh_switch_screenshot.png"
+      width="750px"
+    >
+  </p>
 
 - `nh home` - reimplements `home-manager`.
-- `nh darwin` - which reimplements `darwin-rebuild`.
+- `nh darwin` - reimplements `darwin-rebuild`.
 
 [^1]: `nh os` does not yet provide full feature parity with `nixos-rebuild`.
     While a large collection of subcommands have been implemented, you might be
     missing some features. Please visit
     [#358](https://github.com/nix-community/nh/issues/358) for a roadmap.
 
-See the help page for individual subcommands, or `man 1 nh` for more information
-on each subcommand.
+> [!TIP]
+> See the help page for individual subcommands, or `man 1 nh` for more
+> information on each subcommand.
 
 ## Installation
 
@@ -164,7 +162,7 @@ set the following configuration:
 > [!TIP]
 > As of 4.0, NH fully supports both **Nix flakes** and classical NixOS
 > configurations via channels or manual dependency pinning and the such. Please
-> consider installables support mature, but somewhat experimental as it is a new
+> consider the new API mature, but somewhat experimental as it is a new
 > addition. Remember to report any bugs!
 
 - For flakes, the command is `nh os switch /path/to/flake`
@@ -228,14 +226,16 @@ run `nix develop`. We also provide a `.envrc` for Direnv users, who may use
 NH consists of two modules. The core of NH is found in the `src` directory, and
 is separated into different modules. Some of the critical modules that you may
 want to be aware of are `nh::commands` for command interfaces, `nh::checks` for
-pre-startup checks and `nh::util` to store shared logic.
+pre-startup checks and `nh::util` to store shared logic. Platform-specific logic
+is placed in the appropriate platfom module, such as `nh::nixos` or `nh::darwin`
+with generic helpers placed in `nh::util`.
 
 The `xtask` directory contains the cargo-xtask tasks used by NH, used to
 generate manpages and possibly more in the future. Some of the
 
 ### Submitting Changes
 
-Once your changes are complete, remember to run [fix.sh](./fix.sh) to applyg
+Once your changes are complete, remember to run [fix.sh](./fix.sh) to apply
 general formatter and linter rules that will be expected by the CI.
 
 Lastly, update the [changelog](/CHANGELOG.md) and open your pull request.
