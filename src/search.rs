@@ -1,4 +1,5 @@
 use std::process::Stdio;
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use color_eyre::eyre::{Context, bail};
@@ -12,7 +13,7 @@ use crate::{Result, interface};
 
 // List of deprecated NixOS versions
 // Add new versions as they become deprecated.
-const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05"];
+const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05", "nixos-24.11"];
 
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(non_snake_case, dead_code)]
@@ -173,8 +174,10 @@ impl SearchArgs {
         let nixpkgs_path_output = nixpkgs_path
             .join()
             .map_err(|e| color_eyre::eyre::eyre!("nixpkgs_path thread panicked: {e:?}"))?;
+
         let nixpkgs_path_output =
             nixpkgs_path_output.context("Evaluating the nixpkgs path location")?;
+
         let nixpkgs_path = String::from_utf8(nixpkgs_path_output.stdout)
             .context("Converting nixpkgs_path to UTF-8")?;
 
@@ -247,7 +250,13 @@ fn supported_branch<S: AsRef<str>>(branch: S) -> bool {
     }
 
     // Support for current version pattern
-    let re = Regex::new(r"nixos-[0-9]+\.[0-9]+").unwrap();
+    static SUPPORTED_BRANCH_REGEX: OnceLock<Regex> = OnceLock::new();
+    let re = SUPPORTED_BRANCH_REGEX.get_or_init(|| {
+        Regex::new(r"^nixos-\d+\.\d+$").unwrap_or_else(|e| {
+            warn!("invalid regex in supported_branch: {e}");
+            Regex::new("$^").unwrap()
+        })
+    });
     re.is_match(branch)
 }
 
