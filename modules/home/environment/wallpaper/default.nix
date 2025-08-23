@@ -2,32 +2,32 @@
   config,
   lib,
   profile,
-  inputs,
+  platform,
+  pkgs,
   ...
 }:
 let
   cfg = config.environment.wallpaper;
+  inherit (lib) types;
 in
 {
-  imports = [
-    inputs.moxpaper.homeManagerModules.default
-    inputs.moxpaper.homeManagerModules.stylix
-  ];
-
   options.environment.wallpaper = {
     enable = lib.mkOption {
-      type = lib.types.bool;
+      type = types.bool;
       default = profile == "desktop";
+    };
+    package = lib.mkOption {
+      type = types.package;
+      default = if platform == "non-nixos" then config.lib.nixGL.wrap pkgs.moxpaper else pkgs.moxpaper;
     };
   };
 
   config = {
-    nixpkgs.config.nixGLWrap = [ "moxpaper" ];
-
     services = {
       hyprpaper.enable = lib.mkForce false;
       moxpaper = {
         inherit (cfg) enable;
+        inherit (cfg) package;
 
         settings = {
           power_preference = "high_performance";

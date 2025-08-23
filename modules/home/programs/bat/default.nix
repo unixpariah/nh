@@ -1,7 +1,5 @@
-{ config, lib, ... }:
-let
-  cfg = config.programs.bat;
-in
+{ pkgs, ... }:
 {
-  config = lib.mkIf cfg.enable { home.shellAliases.cat = "bat"; };
+  programs.bat.enable = true;
+  home.shellAliases.less = "${pkgs.bat}/bin/bat";
 }

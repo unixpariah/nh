@@ -27,10 +27,8 @@
       enable = true;
       variant = "tmux";
     };
-    nixcord.vesktop.enable = true;
-    zen-browser.enable = true;
+    vesktop.enable = true;
     chromium.enable = true;
-    nix-index.enable = true;
     fastfetch.enable = true;
     starship.enable = true;
     zoxide.enable = true;
@@ -101,7 +99,7 @@
         name = "DejaVu Serif";
       };
       emoji = {
-        package = pkgs.noto-fonts-emoji;
+        package = pkgs.noto-fonts-emoji-blob-bin;
         name = "Noto Color Emoji";
       };
     };

@@ -8,16 +8,11 @@
 {
   nixpkgs.config = {
     allowUnfreePredicate =
-      pkgs:
-      builtins.elem (lib.getName pkgs) [
+      pkg:
+      builtins.elem (lib.getName pkg) [
         "slack"
         "obsidian"
       ];
-    nixGLWrap = [
-      "moxnotify"
-      "hyprland"
-      "zen"
-    ];
   };
 
   targets.genericLinux.enable = true;
@@ -33,12 +28,11 @@
       enable = true;
       profiles = { };
     };
-    nh.package = inputs.nh-system.packages.${pkgs.system}.default;
+    nh.package = inputs.nh-system.packages.${pkgs.stdenv.hostPlatform.system}.default;
     gnome.enable = true;
 
     firefox.enable = true;
     chromium.enable = true;
-    zen-browser.enable = true;
 
     editor = "hx";
     vcs = {
@@ -106,13 +100,14 @@
       };
     };
 
-    terminal.program = "foot";
+    terminal.program = "ghostty";
   };
 
   stylix = {
     enable = true;
     theme = "catppuccin-mocha";
     cursor.size = 36;
+    opacity.terminal = 0.8;
     fonts = {
       sizes.terminal = 12;
       monospace = {
@@ -128,7 +123,7 @@
         name = "DejaVu Serif";
       };
       emoji = {
-        package = pkgs.noto-fonts-emoji;
+        package = pkgs.noto-fonts-emoji-blob-bin;
         name = "Noto Color Emoji";
       };
     };

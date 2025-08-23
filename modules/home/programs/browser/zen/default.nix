@@ -3,6 +3,7 @@
   pkgs,
   config,
   lib,
+  system,
   ...
 }:
 let
@@ -97,14 +98,15 @@ in
 
       extensions = {
         force = true;
-        packages = with inputs.firefox-addons.packages.${pkgs.system}; [
-          ublock-origin
-          sponsorblock
-          darkreader
-          vimium
-          youtube-shorts-block
-          stylus
-        ];
+        packages = builtins.attrValues {
+          inherit (inputs.firefox-addons.packages.${system})
+            ublock-origin
+            sponsorblock
+            darkreader
+            vimium
+            youtube-shorts-block
+            ;
+        };
       };
       settings."uBlock0@raymondhill.net".settings = {
         selectedFilterLists = [

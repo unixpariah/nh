@@ -2,8 +2,8 @@
   config,
   lib,
   profile,
-  inputs,
   pkgs,
+  platform,
   ...
 }:
 let
@@ -11,11 +11,14 @@ let
   inherit (lib) types;
 in
 {
-  imports = [ inputs.moxidle.homeManagerModules.default ];
   options.environment.idle = {
     enable = lib.mkOption {
       type = types.bool;
       default = profile == "desktop";
+    };
+    package = lib.mkOption {
+      type = types.package;
+      default = if platform == "non-nixos" then config.lib.nixGL.wrap pkgs.moxidle else pkgs.moxidle;
     };
     stages = {
       dim = {
@@ -50,17 +53,22 @@ in
       };
     };
   };
-  config = lib.mkIf cfg.enable {
+  config = {
     services.moxidle = {
-      enable = true;
+      inherit (cfg) enable;
+      inherit (cfg) package;
       settings = {
-        general = {
-          lock_cmd = "pidof ${pkgs.hyprlock}/bin/hyprlock || ${pkgs.hyprlock}/bin/hyprlock";
-          unlock_cmd = "pkill -USR1 hyprlock";
-          ignore_dbus_inhibit = false;
-          ignore_systemd_inhibit = false;
-          ignore_audio_inhibit = false;
-        };
+        general =
+          let
+            lockscreen = config.environment.lockscreen.package;
+          in
+          {
+            lock_cmd = "pidof ${lockscreen.meta.mainProgram} || ${lib.getExe lockscreen}";
+            unlock_cmd = "pkill -USR1 ${lockscreen.meta.mainProgram}";
+            ignore_dbus_inhibit = false;
+            ignore_systemd_inhibit = false;
+            ignore_audio_inhibit = false;
+          };
         listeners = lib.flatten [
           (lib.optional cfg.stages.dim.enable {
             inherit (cfg.stages.dim) timeout;
@@ -96,7 +104,8 @@ in
         ];
       };
     };
-    nix.settings = {
+
+    nix.settings = lib.mkIf cfg.enable {
       substituters = [ "https://moxidle.cachix.org" ];
       trusted-substituters = [ "https://moxidle.cachix.org" ];
       trusted-public-keys = [ "moxidle.cachix.org-1:ck2KY0PlOsrgMUBfJaYVmcDbyHT2cK6KSvLP09amGUU=" ];

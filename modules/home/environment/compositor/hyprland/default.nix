@@ -3,6 +3,7 @@
   lib,
   config,
   profile,
+  platform,
   ...
 }:
 let
@@ -10,14 +11,22 @@ let
   inherit (lib) types;
 in
 {
-  options.programs.hyprland.enable = lib.mkOption {
-    type = types.bool;
-    default = profile == "desktop";
+  options.programs.hyprland = {
+    enable = lib.mkOption {
+      type = types.bool;
+      default = profile == "desktop";
+    };
+    package = lib.mkOption {
+      type = types.package;
+      default = if platform == "non-nixos" then config.lib.nixGL.wrap pkgs.hyprland else pkgs.hyprland;
+    };
   };
 
   config = {
     wayland.windowManager.hyprland = {
       inherit (cfg) enable;
+      inherit (cfg) package;
+
       plugins = [ pkgs.hyprscroller ];
 
       settings = {

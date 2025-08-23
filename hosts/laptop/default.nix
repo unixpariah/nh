@@ -7,7 +7,7 @@
 {
   imports = [
     ./disko.nix
-    #./gpu.nix
+    ./gpu.nix
     ./hardware-configuration.nix
   ];
 
@@ -74,7 +74,7 @@
   system = {
     fileSystem = "zfs";
     bootloader = {
-      variant = "systemd-boot";
+      variant = "limine";
       silent = true;
     };
     ydotool.enable = true;
@@ -105,9 +105,14 @@
 
   environment = {
     variables.EDITOR = "hx";
-    systemPackages = builtins.attrValues { inherit (pkgs) helix cosmic-icons; };
+    systemPackages = builtins.attrValues { inherit (pkgs) cosmic-icons helix; };
   };
 
   time.timeZone = "Europe/Warsaw";
   i18n.defaultLocale = "en_US.UTF-8";
+
+  #nixpkgs.hostPlatform.gcc = {
+  #  arch = "skylake";
+  #  tune = "skylake";
+  #};
 }

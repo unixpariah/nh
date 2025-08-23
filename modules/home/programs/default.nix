@@ -1,7 +1,7 @@
-{ profile, inputs, ... }:
+{ profile, ... }:
 {
   imports = [
-    ./nixcord
+    ./vesktop
     ./cachix
     ./shell
     ./editor
@@ -19,7 +19,6 @@
     ./nh
     ./gcloud
     ./vcs
-    inputs.moxctl.homeManagerModules.default
   ];
 
   programs = {

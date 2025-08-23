@@ -9,11 +9,8 @@
       home-manager,
       stylix,
       deploy-rs,
-      nix-gaming,
-      nix-index-database,
       nix-on-droid,
       system-manager,
-      treefmt,
       nix-raspberrypi,
       ...
     }@inputs:
@@ -53,7 +50,6 @@
             ./modules/common/home
             ./hosts/${hostName}/users/${username}
             stylix.homeModules.stylix
-            inputs.nix-index-database.homeModules.nix-index
             {
               networking = { inherit hostName; };
               home = {
@@ -152,11 +148,8 @@
                 ./modules/nixos
                 ./modules/common/nixos
                 ./hosts/${hostName}
-                nix-gaming.nixosModules.pipewireLowLatency
-                nix-gaming.nixosModules.platformOptimizations
                 disko.nixosModules.default
                 stylix.nixosModules.stylix
-                nix-index-database.nixosModules.nix-index
                 { networking = { inherit hostName; }; }
               ]
               ++ lib.optionals (attrs.platform == "rpi-nixos") (
@@ -227,36 +220,34 @@
 
       checks = lib.lists.foldl' lib.attrsets.unionOfDisjoint { } [
         (deploy-rs.lib."x86_64-linux".deployChecks self.deploy)
-        {
-          treefmt-check = forAllSystems (
-            pkgs: (treefmt.lib.evalModule pkgs ./utils/treefmt.nix).config.build.wrapper
-          );
-        }
       ];
 
       formatter = forAllSystems (
         pkgs:
-        (treefmt.lib.evalModule pkgs {
-          imports = [ ./utils/treefmt.nix ];
-          _module.args = { inherit inputs; };
-        }).config.build.wrapper
+        pkgs.writeShellApplication {
+          name = "nix3-fmt-wrapper";
+
+          runtimeInputs = [
+            pkgs.nixfmt-rfc-style
+            pkgs.fd
+          ];
+
+          text = ''
+            fd "$@" -t f -e nix -x nixfmt -q '{}'
+          '';
+        }
       );
     };
 
   inputs = {
+    # Necessary
+
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.05";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    nix-index-database = {
-      url = "github:nix-community/nix-index-database";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     stylix = {
       url = "github:danth/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -270,44 +261,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     impermanence.url = "github:nix-community/impermanence";
-
-    firefox-addons = {
-      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    lanzaboote = {
-      url = "github:nix-community/lanzaboote/v0.4.2";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    niri.url = "github:sodiboo/niri-flake";
-
-    zen-browser = {
-      url = "github:0xc000022070/zen-browser-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixcord = {
-      url = "github:kaylorben/nixcord";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixvim = {
-      url = "github:unixpariah/nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    deploy-rs = {
-      url = "github:serokell/deploy-rs";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     nix-on-droid = {
       url = "github:nix-community/nix-on-droid";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
-    };
-    nix-gaming.url = "github:fufexan/nix-gaming";
-    helix-steel = {
-      url = "github:mattwparas/helix/steel-event-system";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     nixGL = {
       url = "github:nix-community/nixGL";
@@ -317,28 +274,37 @@
       url = "github:numtide/system-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    treefmt = {
-      url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     nix-raspberrypi = {
       url = "github:nvmd/nixos-raspberrypi";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    mox-flake.url = "github:mox-desktop/mox-flake";
 
-    moxidle.url = "github:mox-desktop/moxidle";
-    moxnotify.url = "github:mox-desktop/moxnotify";
-    moxctl.url = "github:mox-desktop/moxctl";
-    moxpaper.url = "github:mox-desktop/moxpaper";
-    moxapi.url = "github:mox-desktop/moxapi";
-    nh = {
-      url = "github:unixpariah/nh";
+    # To be ditched
+
+    # Just copy paste addons from nur-expressions
+    firefox-addons = {
+      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    niri.url = "github:sodiboo/niri-flake"; # wait for kdl parser to be implemented in nixpkgs
+    # No idea, I dont really use it anymore anyways so maybe just remove
+    nixvim = {
+      url = "github:unixpariah/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Use nixos-anywhere terraform module
+    deploy-rs = {
+      url = "github:serokell/deploy-rs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # No clue, I like to have it for my non NixOS machines but at the same time it feels weird
+    # to have it in my inputs
     nh-system = {
       url = "github:unixpariah/nh/system-manager-support";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Maybe just maintain a derivation? Not gonna change it a lot anyways
     sysnotifier = {
       url = "github:unixpariah/SysNotifier";
       inputs.nixpkgs.follows = "nixpkgs";
