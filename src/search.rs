@@ -1,4 +1,5 @@
 use std::process::Stdio;
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use color_eyre::eyre::{Context, bail};
@@ -12,7 +13,7 @@ use crate::{Result, interface};
 
 // List of deprecated NixOS versions
 // Add new versions as they become deprecated.
-const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05"];
+const DEPRECATED_VERSIONS: &[&str] = &["nixos-23.11", "nixos-24.05", "nixos-24.11"];
 
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(non_snake_case, dead_code)]
@@ -57,8 +58,15 @@ impl SearchArgs {
     pub fn run(&self) -> Result<()> {
         trace!("args: {self:?}");
 
-        if !supported_branch(&self.channel) {
-            bail!("Channel {} is not supported!", self.channel);
+        let mut channel = self.channel.clone();
+        if DEPRECATED_VERSIONS.contains(&channel.as_str()) {
+            warn!(
+                "Channel '{channel}' is deprecated or unavailable, falling back to 'nixos-unstable'"
+            );
+            channel = "nixos-unstable".to_string();
+        }
+        if !supported_branch(&channel) {
+            bail!("Channel {channel} is not supported!");
         }
 
         let nixpkgs_path = std::thread::spawn(|| {
@@ -119,8 +127,7 @@ impl SearchArgs {
             // this file and the corresponding workflow called
             // nixos-search.yaml have to be updated accordingly.
             .post(format!(
-                "https://search.nixos.org/backend/latest-43-{}/_search",
-                self.channel
+                "https://search.nixos.org/backend/latest-43-{channel}/_search"
             ))
             .json(&query)
             .header("User-Agent", format!("nh/{}", crate::NH_VERSION))
@@ -138,6 +145,20 @@ impl SearchArgs {
         let elapsed = then.elapsed();
         debug!(?elapsed);
         trace!(?response);
+
+        if !response.status().is_success() {
+            eprintln!(
+                "Error: search.nixos.org returned HTTP {} for channel '{}'. \
+                This usually means the channel does not exist, is not indexed, or the request was malformed.",
+                response.status(),
+                self.channel
+            );
+            return Err(color_eyre::eyre::eyre!(
+                "search.nixos.org returned HTTP {} for channel '{}'",
+                response.status(),
+                self.channel
+            ));
+        }
 
         if !self.json {
             println!("Took {}ms", elapsed.as_millis());
@@ -158,7 +179,7 @@ impl SearchArgs {
             // Output as JSON
             let json_output = JSONOutput {
                 query: query_s,
-                channel: self.channel.clone(),
+                channel,
                 elapsed_ms: elapsed.as_millis(),
                 results: documents,
             };
@@ -173,8 +194,10 @@ impl SearchArgs {
         let nixpkgs_path_output = nixpkgs_path
             .join()
             .map_err(|e| color_eyre::eyre::eyre!("nixpkgs_path thread panicked: {e:?}"))?;
+
         let nixpkgs_path_output =
             nixpkgs_path_output.context("Evaluating the nixpkgs path location")?;
+
         let nixpkgs_path = String::from_utf8(nixpkgs_path_output.stdout)
             .context("Converting nixpkgs_path to UTF-8")?;
 
@@ -247,16 +270,23 @@ fn supported_branch<S: AsRef<str>>(branch: S) -> bool {
     }
 
     // Support for current version pattern
-    let re = Regex::new(r"nixos-[0-9]+\.[0-9]+").unwrap();
+    static SUPPORTED_BRANCH_REGEX: OnceLock<Regex> = OnceLock::new();
+    let re = SUPPORTED_BRANCH_REGEX.get_or_init(|| {
+        Regex::new(r"^nixos-\d+\.\d+$").unwrap_or_else(|e| {
+            warn!("invalid regex in supported_branch: {e}");
+            Regex::new("$^").unwrap()
+        })
+    });
     re.is_match(branch)
 }
 
 #[test]
 fn test_supported_branch() {
     assert!(supported_branch("nixos-unstable"));
+    assert!(supported_branch("nixos-25.05"));
     assert!(!supported_branch("nixos-unstable-small"));
     assert!(!supported_branch("nixos-24.05"));
-    assert!(supported_branch("nixos-24.11"));
+    assert!(!supported_branch("nixos-24.11"));
     assert!(!supported_branch("24.05"));
     assert!(!supported_branch("nixpkgs-darwin"));
     assert!(!supported_branch("nixpks-21.11-darwin"));
