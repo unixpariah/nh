@@ -283,9 +283,10 @@ fn supported_branch<S: AsRef<str>>(branch: S) -> bool {
 #[test]
 fn test_supported_branch() {
     assert!(supported_branch("nixos-unstable"));
+    assert!(supported_branch("nixos-25.05"));
     assert!(!supported_branch("nixos-unstable-small"));
     assert!(!supported_branch("nixos-24.05"));
-    assert!(supported_branch("nixos-24.11"));
+    assert!(!supported_branch("nixos-24.11"));
     assert!(!supported_branch("24.05"));
     assert!(!supported_branch("nixpkgs-darwin"));
     assert!(!supported_branch("nixpks-21.11-darwin"));
