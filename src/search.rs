@@ -61,13 +61,12 @@ impl SearchArgs {
         let mut channel = self.channel.clone();
         if DEPRECATED_VERSIONS.contains(&channel.as_str()) {
             warn!(
-                "Channel '{}' is deprecated or unavailable, falling back to 'nixos-unstable'",
-                channel
+                "Channel '{channel}' is deprecated or unavailable, falling back to 'nixos-unstable'"
             );
             channel = "nixos-unstable".to_string();
         }
         if !supported_branch(&channel) {
-            bail!("Channel {} is not supported!", channel);
+            bail!("Channel {channel} is not supported!");
         }
 
         let nixpkgs_path = std::thread::spawn(|| {
@@ -147,14 +146,16 @@ impl SearchArgs {
         debug!(?elapsed);
         trace!(?response);
 
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
+        if !response.status().is_success() {
             eprintln!(
-                "Error: Channel '{}' is not available on search.nixos.org (HTTP 404). \
-                This usually means the channel does not exist or is not indexed yet.",
+                "Error: search.nixos.org returned HTTP {} for channel '{}'. \
+                This usually means the channel does not exist, is not indexed, or the request was malformed.",
+                response.status(),
                 self.channel
             );
             return Err(color_eyre::eyre::eyre!(
-                "Channel '{}' is not available on search.nixos.org",
+                "search.nixos.org returned HTTP {} for channel '{}'",
+                response.status(),
                 self.channel
             ));
         }
