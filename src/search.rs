@@ -13,7 +13,7 @@ use crate::{Result, interface};
 
 // List of deprecated NixOS versions
 // Add new versions as they become deprecated.
-const DEPRECATED_VERSIONS: &[&str] = &["nixos-24.05", "nixos-24.11"];
+const DEPRECATED_VERSIONS: &[&str] = &["nixos-23.11", "nixos-24.05", "nixos-24.11"];
 
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(non_snake_case, dead_code)]
@@ -58,8 +58,16 @@ impl SearchArgs {
     pub fn run(&self) -> Result<()> {
         trace!("args: {self:?}");
 
-        if !supported_branch(&self.channel) {
-            bail!("Channel {} is not supported!", self.channel);
+        let mut channel = self.channel.clone();
+        if DEPRECATED_VERSIONS.contains(&channel.as_str()) {
+            warn!(
+                "Channel '{}' is deprecated or unavailable, falling back to 'nixos-unstable'",
+                channel
+            );
+            channel = "nixos-unstable".to_string();
+        }
+        if !supported_branch(&channel) {
+            bail!("Channel {} is not supported!", channel);
         }
 
         let nixpkgs_path = std::thread::spawn(|| {
@@ -120,8 +128,7 @@ impl SearchArgs {
             // this file and the corresponding workflow called
             // nixos-search.yaml have to be updated accordingly.
             .post(format!(
-                "https://search.nixos.org/backend/latest-43-{}/_search",
-                self.channel
+                "https://search.nixos.org/backend/latest-43-{channel}/_search"
             ))
             .json(&query)
             .header("User-Agent", format!("nh/{}", crate::NH_VERSION))
@@ -139,6 +146,18 @@ impl SearchArgs {
         let elapsed = then.elapsed();
         debug!(?elapsed);
         trace!(?response);
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            eprintln!(
+                "Error: Channel '{}' is not available on search.nixos.org (HTTP 404). \
+                This usually means the channel does not exist or is not indexed yet.",
+                self.channel
+            );
+            return Err(color_eyre::eyre::eyre!(
+                "Channel '{}' is not available on search.nixos.org",
+                self.channel
+            ));
+        }
 
         if !self.json {
             println!("Took {}ms", elapsed.as_millis());
@@ -159,7 +178,7 @@ impl SearchArgs {
             // Output as JSON
             let json_output = JSONOutput {
                 query: query_s,
-                channel: self.channel.clone(),
+                channel,
                 elapsed_ms: elapsed.as_millis(),
                 results: documents,
             };
