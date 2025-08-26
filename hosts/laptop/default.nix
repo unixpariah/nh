@@ -105,7 +105,7 @@
 
   environment = {
     variables.EDITOR = "hx";
-    systemPackages = builtins.attrValues { inherit (pkgs) cosmic-icons helix; };
+    systemPackages = builtins.attrValues { inherit (pkgs) helix cosmic-icons; };
   };
 
   time.timeZone = "Europe/Warsaw";
