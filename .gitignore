@@ -1,6 +1,7 @@
 # Rust
 target
 gen*
+!generations.rs
 
 # Nix
 .direnv
