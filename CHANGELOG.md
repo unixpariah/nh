@@ -46,6 +46,9 @@ functionality, under the "Removed" section.
   - It's roughly %4 faster according to testing, but IO is still a limiting
     factor and results may differ.
 - Added more context to some minor debug messages across platform commands.
+- Nh now supports alternative privilege escalation methods. Namely `doas`,
+  `run0` and a fallback `pkexec` strategies will be attempted if the system does
+  not use `sudo`.
 
 ### Fixed
 
