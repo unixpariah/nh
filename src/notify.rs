@@ -101,7 +101,7 @@ impl NotificationSender {
       self.notification.action("reject", "Reject");
     }
 
-    let handle = self.notification.show()?;
+    let handle = self.notification.show().unwrap();
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
@@ -109,9 +109,10 @@ impl NotificationSender {
       handle.wait_for_action(|s| {
         confirmation = s == "accept";
       });
-      return Ok(confirmation);
+      Ok(confirmation)
     }
 
+    #[cfg(target_os = "macos")]
     Ok(false)
   }
 }
