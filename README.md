@@ -215,6 +215,54 @@ The config would look like this:
 }
 ```
 
+## Environment variables
+
+NH supports several environment variables to control command behaviour. Some of
+the common variables that you may encounter or choose to employ are as follows:
+
+- `NH_NO_CHECKS`
+  - When set (any non-empty value), skips startup checks such as Nix version and
+    experimental feature validation. Useful for generating completions or
+    running in constrained build environments. You can also consider this an
+    "expert flag" that you can set for a non-zero performance benefit. It
+    assumes you know what you are doing.
+
+- `NH_FLAKE`
+  - Preferred flake path/reference used by NH when running flake-based commands.
+    Historically `FLAKE` was used; NH will migrate `FLAKE` into `NH_FLAKE` if
+    present and the specific `NH_*_FLAKE` vars are not set.
+
+- `NH_OS_FLAKE`, `NH_HOME_FLAKE`, `NH_DARWIN_FLAKE`
+  - Command-specific flake references for `os`, `home`, and `darwin` commands
+    respectively. If present they take precedence over `NH_FLAKE`.
+
+- `NH_SUDO_ASKPASS`
+  - Path to a program used as `SUDO_ASKPASS` when NH self-elevates with `sudo`.
+    If set and `sudo` is used for elevation, NH will pass `-A` to `sudo` and set
+    `SUDO_ASKPASS` accordingly.
+
+- `NH_PRESERVE_ENV`
+  - Controls whether environment variables marked for preservation are passed to
+    elevated commands. Set to `"0"` to disable preservation, `"1"` to force
+    preservation. If unset, preservation defaults to enabled.
+
+- `NH_LOG`
+  - Sets the tracing/log filter for NH. This uses the same format as
+    `tracing_subscriber` env filters (for example: `nh=trace`).
+
+- `NH_NOM`
+  - Control whether `nom` (nix-output-monitor) should be enabled for the build
+    processes. Equivalent of `--no-nom`.
+
+### Notes
+
+- Any environment variables prefixed with `NH_` are explicitly propagated by NH
+  to commands when appropriate.
+- For backwards compatibility, if `FLAKE` is present and none of the
+  command-specific `NH_*_FLAKE` variables exist, NH will set `NH_FLAKE` from
+  `FLAKE` and emit a warning recommending migration to `NH_FLAKE`. `FLAKE` will
+  be removed in the future versions of NH.
+
 ## Hacking
 
 Contributions are always welcome. To get started, just clone the repository and
