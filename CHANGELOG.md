@@ -49,6 +49,9 @@ functionality, under the "Removed" section.
 - Nh now supports alternative privilege escalation methods. Namely `doas`,
   `run0` and a fallback `pkexec` strategies will be attempted if the system does
   not use `sudo`.
+- Nh will correctly prompt you for your `sudo` password while deploying
+  remotely. This helps mitigating the need to allow password-less `sudo` on
+  target host to be able to deploy remotely.
 
 ### Fixed
 
