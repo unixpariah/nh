@@ -9,6 +9,7 @@ use color_eyre::{
   Result,
   eyre::{self, Context, bail},
 };
+use secrecy::{ExposeSecret, SecretString};
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -16,20 +17,26 @@ use which::which;
 
 use crate::{installable::Installable, interface::NixBuildPassthroughArgs};
 
-static PASSWORD_CACHE: OnceLock<Mutex<HashMap<String, String>>> =
+static PASSWORD_CACHE: OnceLock<Mutex<HashMap<String, SecretString>>> =
   OnceLock::new();
 
-fn get_cached_password(host: &str) -> Option<String> {
+fn get_cached_password(host: &str) -> Option<SecretString> {
   let cache = PASSWORD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-  cache.lock().unwrap().get(host).cloned()
+  let guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+  guard.get(host).cloned()
 }
 
-fn cache_password(host: &str, password: String) {
+fn cache_password(host: &str, password: SecretString) {
   let cache = PASSWORD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-  cache.lock().unwrap().insert(host.to_string(), password);
+  let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+  guard.insert(host.to_string(), password);
 }
 
-fn ssh_wrap(cmd: Exec, ssh: Option<&str>, password: Option<&str>) -> Exec {
+fn ssh_wrap(
+  cmd: Exec,
+  ssh: Option<&str>,
+  password: Option<&SecretString>,
+) -> Exec {
   if let Some(ssh) = ssh {
     let mut ssh_cmd = Exec::cmd("ssh")
       .arg("-T")
@@ -37,7 +44,7 @@ fn ssh_wrap(cmd: Exec, ssh: Option<&str>, password: Option<&str>) -> Exec {
       .arg(cmd.to_cmdline_lossy());
 
     if let Some(pwd) = password {
-      ssh_cmd = ssh_cmd.stdin(format!("{}\n", pwd).as_str());
+      ssh_cmd = ssh_cmd.stdin(format!("{}\n", pwd.expose_secret()).as_str());
     }
 
     ssh_cmd
@@ -452,8 +459,9 @@ impl Command {
             .without_confirmation()
             .prompt()
             .context("Failed to read sudo password")?;
-        cache_password(host, password.clone());
-        Some(password)
+        let secret_password = SecretString::new(password);
+        cache_password(host, secret_password.clone());
+        Some(secret_password)
       }
     } else {
       None
@@ -515,7 +523,7 @@ impl Command {
         cmd.stderr(Redirection::None).stdout(Redirection::None)
       },
       self.ssh.as_deref(),
-      sudo_password.as_deref(),
+      sudo_password.as_ref(),
     );
 
     if let Some(m) = &self.message {
@@ -1164,7 +1172,8 @@ mod tests {
   #[test]
   fn test_ssh_wrap_with_password() {
     let cmd = subprocess::Exec::cmd("echo").arg("hello");
-    let wrapped = ssh_wrap(cmd, Some("user@host"), Some("testpass"));
+    let password = SecretString::new("testpass".to_string());
+    let wrapped = ssh_wrap(cmd, Some("user@host"), Some(&password));
 
     let cmdline = wrapped.to_cmdline_lossy();
     assert!(cmdline.starts_with("ssh"));
