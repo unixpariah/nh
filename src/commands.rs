@@ -2,12 +2,14 @@ use std::{
   collections::HashMap,
   ffi::{OsStr, OsString},
   path::PathBuf,
+  sync::{Mutex, OnceLock},
 };
 
 use color_eyre::{
   Result,
   eyre::{self, Context, bail},
 };
+use secrecy::{ExposeSecret, SecretString};
 use subprocess::{Exec, ExitStatus, Redirection};
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -15,12 +17,37 @@ use which::which;
 
 use crate::{installable::Installable, interface::NixBuildPassthroughArgs};
 
-fn ssh_wrap(cmd: Exec, ssh: Option<&str>) -> Exec {
+static PASSWORD_CACHE: OnceLock<Mutex<HashMap<String, SecretString>>> =
+  OnceLock::new();
+
+fn get_cached_password(host: &str) -> Option<SecretString> {
+  let cache = PASSWORD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+  let guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+  guard.get(host).cloned()
+}
+
+fn cache_password(host: &str, password: SecretString) {
+  let cache = PASSWORD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+  let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+  guard.insert(host.to_string(), password);
+}
+
+fn ssh_wrap(
+  cmd: Exec,
+  ssh: Option<&str>,
+  password: Option<&SecretString>,
+) -> Exec {
   if let Some(ssh) = ssh {
-    Exec::cmd("ssh")
+    let mut ssh_cmd = Exec::cmd("ssh")
       .arg("-T")
       .arg(ssh)
-      .stdin(cmd.to_cmdline_lossy().as_str())
+      .arg(cmd.to_cmdline_lossy());
+
+    if let Some(pwd) = password {
+      ssh_cmd = ssh_cmd.stdin(format!("{}\n", pwd.expose_secret()).as_str());
+    }
+
+    ssh_cmd
   } else {
     cmd
   }
@@ -418,9 +445,73 @@ impl Command {
   ///
   /// Panics if the command result is unexpectedly None.
   pub fn run(&self) -> Result<()> {
-    let cmd = if self.elevate.is_some() {
-      self.build_sudo_cmd()?.arg(&self.command).args(&self.args)
+    // Prompt for sudo password if needed for remote deployment
+    // FIXME: this implementation only covers Sudo. I *think* doas and run0 are
+    // able to read from stdin, but needs to be tested and possibly
+    // mitigated.
+    let sudo_password = if self.ssh.is_some() && self.elevate.is_some() {
+      let host = self.ssh.as_ref().unwrap();
+      if let Some(cached_password) = get_cached_password(host) {
+        Some(cached_password)
+      } else {
+        let password =
+          inquire::Password::new(&format!("[sudo] password for {}:", host))
+            .without_confirmation()
+            .prompt()
+            .context("Failed to read sudo password")?;
+        let secret_password = SecretString::new(password);
+        cache_password(host, secret_password.clone());
+        Some(secret_password)
+      }
     } else {
+      None
+    };
+
+    let cmd = if self.elevate.is_some() && self.ssh.is_none() {
+      // Local elevation
+      self.build_sudo_cmd()?.arg(&self.command).args(&self.args)
+    } else if self.elevate.is_some() && self.ssh.is_some() {
+      // Build elevation command
+      let elevation_program = self
+        .elevate
+        .as_ref()
+        .unwrap()
+        .resolve()
+        .context("Failed to resolve elevation program")?;
+
+      let program_name = elevation_program
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+          eyre::eyre!("Failed to determine elevation program name")
+        })?;
+
+      let mut elev_cmd = Exec::cmd(&elevation_program);
+
+      // Add program-specific arguments
+      if program_name == "sudo" {
+        elev_cmd = elev_cmd.arg("--prompt=").arg("--stdin");
+      }
+
+      // Add env command to handle environment variables
+      elev_cmd = elev_cmd.arg("env");
+      for (key, action) in &self.env_vars {
+        match action {
+          EnvAction::Set(value) => {
+            elev_cmd = elev_cmd.arg(format!("{}={}", key, value));
+          },
+          EnvAction::Preserve => {
+            if let Ok(value) = std::env::var(key) {
+              elev_cmd = elev_cmd.arg(format!("{}={}", key, value));
+            }
+          },
+          _ => {},
+        }
+      }
+
+      elev_cmd.arg(&self.command).args(&self.args)
+    } else {
+      // No elevation
       self.apply_env_to_exec(Exec::cmd(&self.command).args(&self.args))
     };
 
@@ -432,6 +523,7 @@ impl Command {
         cmd.stderr(Redirection::None).stdout(Redirection::None)
       },
       self.ssh.as_deref(),
+      sudo_password.as_ref(),
     );
 
     if let Some(m) = &self.message {
@@ -1060,7 +1152,7 @@ mod tests {
   #[test]
   fn test_ssh_wrap_with_ssh() {
     let cmd = subprocess::Exec::cmd("echo").arg("hello");
-    let wrapped = ssh_wrap(cmd, Some("user@host"));
+    let wrapped = ssh_wrap(cmd, Some("user@host"), None);
 
     let cmdline = wrapped.to_cmdline_lossy();
     assert!(cmdline.starts_with("ssh"));
@@ -1071,10 +1163,22 @@ mod tests {
   #[test]
   fn test_ssh_wrap_without_ssh() {
     let cmd = subprocess::Exec::cmd("echo").arg("hello");
-    let wrapped = ssh_wrap(cmd.clone(), None);
+    let wrapped = ssh_wrap(cmd.clone(), None, None);
 
     // Should return the original command unchanged
     assert_eq!(wrapped.to_cmdline_lossy(), cmd.to_cmdline_lossy());
+  }
+
+  #[test]
+  fn test_ssh_wrap_with_password() {
+    let cmd = subprocess::Exec::cmd("echo").arg("hello");
+    let password = SecretString::new("testpass".to_string());
+    let wrapped = ssh_wrap(cmd, Some("user@host"), Some(&password));
+
+    let cmdline = wrapped.to_cmdline_lossy();
+    assert!(cmdline.starts_with("ssh"));
+    assert!(cmdline.contains("-T"));
+    assert!(cmdline.contains("user@host"));
   }
 
   #[test]
