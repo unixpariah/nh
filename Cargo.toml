@@ -5,7 +5,7 @@ members = [ ".", "xtask" ]
 [workspace.package]
 edition      = "2024"
 rust-version = "1.86.0"
-version      = "4.2.0-beta5"
+version      = "4.2.0"
 
 [workspace.dependencies.clap]
 features = [ "cargo", "color", "derive", "env", "unstable-styles" ]
@@ -16,7 +16,7 @@ name                   = "nh"
 license                = "EUPL-1.2"
 repository             = "https://github.com/nix-community/nh"
 description            = "Yet Another Nix Helper"
-keywords               = [ "nix", "helper" ]
+keywords               = [ "nix", "nixos", "nix-darwin", "helper", "CLI" ]
 readme                 = "README.md"
 version.workspace      = true
 edition.workspace      = true
