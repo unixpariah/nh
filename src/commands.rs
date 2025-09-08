@@ -122,8 +122,7 @@ impl ElevationStrategy {
   /// # Returns
   ///
   /// * `Result<PathBuf>` - The absolute path to the privilege elevation program
-  ///   binary or an error if a
-  /// program can't be found.
+  ///   binary or an error if a program can't be found.
   fn choice() -> Result<PathBuf> {
     const STRATEGIES: [&str; 4] = ["doas", "sudo", "run0", "pkexec"];
 
@@ -364,12 +363,7 @@ impl Command {
     // "1" to force, unset defaults to force
     let preserve_env = std::env::var("NH_PRESERVE_ENV")
       .as_deref()
-      .map(|x| {
-        match x {
-          "0" => false,
-          _ => true,
-        }
-      })
+      .map(|x| !matches!(x, "0"))
       .unwrap_or(true);
 
     // Insert 'env' command to explicitly pass environment variables to the
@@ -459,7 +453,7 @@ impl Command {
             .without_confirmation()
             .prompt()
             .context("Failed to read sudo password")?;
-        let secret_password = SecretString::new(password);
+        let secret_password = SecretString::new(password.into());
         cache_password(host, secret_password.clone());
         Some(secret_password)
       }
@@ -1172,7 +1166,7 @@ mod tests {
   #[test]
   fn test_ssh_wrap_with_password() {
     let cmd = subprocess::Exec::cmd("echo").arg("hello");
-    let password = SecretString::new("testpass".to_string());
+    let password = SecretString::new("testpass".into());
     let wrapped = ssh_wrap(cmd, Some("user@host"), Some(&password));
 
     let cmdline = wrapped.to_cmdline_lossy();
