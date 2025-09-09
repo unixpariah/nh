@@ -469,8 +469,37 @@ impl HomeArgs {
           Box::new(LegacyFeatures)
         }
       },
+      HomeSubcommand::Rollback(_) => Box::new(LegacyFeatures),
     }
   }
+}
+
+#[derive(Debug, Args)]
+pub struct HomeRollbackArgs {
+  /// Only print actions, without performing them
+  #[arg(long, short = 'n')]
+  pub dry: bool,
+
+  /// Ask for confirmation
+  #[arg(long, short)]
+  pub ask: bool,
+
+  /// Explicitly select some specialisation
+  #[arg(long, short)]
+  pub specialisation: Option<String>,
+
+  /// Ignore specialisations
+  #[arg(long, short = 'S')]
+  pub no_specialisation: bool,
+
+  /// Rollback to a specific generation number (defaults to previous
+  /// generation)
+  #[arg(long, short)]
+  pub to: Option<u64>,
+
+  /// Whether to display a package diff
+  #[arg(long, short, value_enum, default_value_t = DiffType::Auto)]
+  pub diff: DiffType,
 }
 
 #[derive(Debug, Subcommand)]
@@ -483,6 +512,9 @@ pub enum HomeSubcommand {
 
   /// Load a home-manager configuration in a Nix REPL
   Repl(HomeReplArgs),
+
+  /// Rollback to a previous generation
+  Rollback(HomeRollbackArgs),
 }
 
 #[derive(Debug, Args)]
